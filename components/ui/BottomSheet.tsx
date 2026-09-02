@@ -24,7 +24,7 @@ export function BottomSheet({
         <div className="app-sheet__grabber" />
         <header className="app-sheet__header">
           <h2 id="app-sheet-title">{title}</h2>
-          <button className="app-sheet__close" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="app-sheet__close" onClick={onClose} aria-label="Cerrar">
             ×
           </button>
         </header>

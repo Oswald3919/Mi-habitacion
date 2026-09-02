@@ -1,5 +1,7 @@
 import type { SchoolModule, SchoolSubject } from './domain';
 
+// Curricular seed kept in one replaceable boundary. Confirm the exact BIS plantel
+// catalog before treating these names as the authoritative academic plan.
 export const BIS_MODULES: SchoolModule[] = Array.from({ length: 6 }, (_, index) => ({ id: `bis-module-${index + 1}`, number: index + 1, name: `Módulo ${index + 1}`, position: index }));
 
 const moduleSubjects: string[][] = [
