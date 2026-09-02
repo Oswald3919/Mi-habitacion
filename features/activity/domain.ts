@@ -1,5 +1,12 @@
-export type ActivityEntityType = 'room_zone' | 'room_item';
-export type ActivityAction = 'room.status_changed' | 'room.day_reset';
+export type ActivityEntityType = 'room_zone' | 'room_item' | 'task';
+export type ActivityAction =
+  | 'room.status_changed'
+  | 'room.day_reset'
+  | 'task.created'
+  | 'task.completed'
+  | 'task.reopened'
+  | 'task.updated'
+  | 'task.deleted';
 
 export type ActivityLogEntry = {
   id: string;

@@ -1,2 +1,2 @@
-import { ModulePlaceholder } from '../../components/modules/ModulePlaceholder';
-export default function Page(){return <ModulePlaceholder title="Tareas" description="Aquí aparecerán tus pendientes, fechas y próximos pasos."/>}
+import { TasksPage } from '../../features/tasks/TasksPage';
+export default function Page(){return <TasksPage/>}

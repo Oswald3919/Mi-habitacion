@@ -11,6 +11,7 @@ import {
   type RoomUpdated,
   type RoomZoneId,
 } from '../../features/room/domain';
+import { isTask } from '../../features/tasks/domain';
 import {
   LEGACY_DATABASE_KEYS,
   LOCAL_DATABASE_KEY,
@@ -21,6 +22,7 @@ import {
   type StoredRoomDailySnapshot,
   type StoredRoomItem,
   type StoredRoomZone,
+  type LocalDatabaseV1,
 } from './schema';
 
 const ZONE_NAMES: Record<RoomZoneId, string> = {
@@ -49,6 +51,10 @@ type LegacyPayload = {
   history?: unknown;
   notifications?: unknown;
 };
+
+function migrateV1ToV2(database: LocalDatabaseV1): LocalDatabase {
+  return { ...database, schema_version: LOCAL_DATABASE_VERSION, tasks: [] };
+}
 
 function parseJson(value: string | null): unknown {
   if (!value) return null;
@@ -176,14 +182,11 @@ export function migrateLegacyPayload(
     settings: {
       room_notifications: Boolean(payload?.notifications),
     },
+    tasks: [],
   };
 }
 
-export function isLocalDatabase(value: unknown): value is LocalDatabase {
-  if (!isRecord(value) || value.schema_version !== LOCAL_DATABASE_VERSION) {
-    return false;
-  }
-
+function hasCommonDatabaseShape(value: Record<string, unknown>): boolean {
   return (
     typeof value.profile_id === 'string' &&
     isDateKey(value.current_date) &&
@@ -197,12 +200,38 @@ export function isLocalDatabase(value: unknown): value is LocalDatabase {
   );
 }
 
+export function isLocalDatabaseV1(value: unknown): value is LocalDatabaseV1 {
+  if (!isRecord(value) || value.schema_version !== 1) {
+    return false;
+  }
+  return hasCommonDatabaseShape(value);
+}
+
+export function isLocalDatabase(value: unknown): value is LocalDatabase {
+  if (!isRecord(value) || value.schema_version !== LOCAL_DATABASE_VERSION) {
+    return false;
+  }
+  return hasCommonDatabaseShape(value) && Array.isArray(value.tasks) && value.tasks.every(isTask);
+}
+
+export function migrateCurrentDatabase(value: unknown): LocalDatabase | null {
+  if (isLocalDatabase(value)) return value;
+  if (isLocalDatabaseV1(value)) return migrateV1ToV2(value);
+  return null;
+}
+
 export function loadOrMigrateDatabase(
   storage: StorageLike,
   currentDate: string,
 ): LocalDatabase {
   const current = parseJson(storage.getItem(LOCAL_DATABASE_KEY));
-  if (isLocalDatabase(current)) return current;
+  const migratedCurrent = migrateCurrentDatabase(current);
+  if (migratedCurrent) {
+    if (migratedCurrent !== current) {
+      storage.setItem(LOCAL_DATABASE_KEY, JSON.stringify(migratedCurrent));
+    }
+    return migratedCurrent;
+  }
 
   let legacyPayload: LegacyPayload | null = null;
   for (const key of LEGACY_DATABASE_KEYS) {

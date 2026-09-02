@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createLocalRoomRepository, getStoredRoomState } from '../lib/persistence/local-repositories';
 import {
   loadOrMigrateDatabase,
+  migrateCurrentDatabase,
   migrateLegacyPayload,
 } from '../lib/persistence/migrations';
 import {
@@ -74,6 +75,16 @@ describe('local persistence migrations', () => {
 
     expect(second.settings.room_notifications).toBe(true);
     expect(second.current_date).toBe('2026-09-02');
+  });
+
+  it('upgrades the phase 1 database to v2 without touching room collections', () => {
+    const v1 = migrateLegacyPayload({ date: '2026-09-02', state: { bed: 'ok' } }, '2026-09-02');
+    const v1Payload = { ...v1, schema_version: 1 as const };
+    const upgraded = migrateCurrentDatabase(v1Payload);
+    expect(upgraded?.schema_version).toBe(LOCAL_DATABASE_VERSION);
+    expect(upgraded?.tasks).toEqual([]);
+    expect(upgraded?.room_items).toEqual(v1.room_items);
+    expect(upgraded?.room_daily_snapshots).toEqual(v1.room_daily_snapshots);
   });
 
   it('sanitizes partial legacy data and fills safe defaults', () => {
