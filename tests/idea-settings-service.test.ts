@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { prepareIdeaArchive, prepareIdeaConverted, prepareIdeaSave } from '../features/ideas/service';
-import { DEFAULT_APP_SETTINGS } from '../features/settings/domain';
+import { DEFAULT_APP_SETTINGS, normalizeAppSettings } from '../features/settings/domain';
 import { prepareSettingsUpdate } from '../features/settings/service';
 import { LOCAL_PROFILE_ID } from '../lib/persistence/schema';
 const ids = () => { let value = 0; return () => `id-${++value}`; };
@@ -22,5 +22,11 @@ describe('ideas and settings services', () => {
     expect(mutation.settings.finance_categories).toEqual(['General', 'Escuela']);
     expect(mutation.settings.school.price_2_weeks).toBe(0);
     expect(mutation.activity.action).toBe('settings.updated');
+  });
+
+  it('defaults the new accent when loading an older settings payload', () => {
+    const normalized = normalizeAppSettings({ ...DEFAULT_APP_SETTINGS, accent: undefined });
+    expect(normalized.appearance).toBe('warm');
+    expect(normalized.accent).toBe('green');
   });
 });

@@ -41,6 +41,7 @@ export function TaskComposer({
   const [input, setInput] = useState<NewTaskInput>(blankInput);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [otherDate, setOtherDate] = useState('');
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [error, setError] = useState('');
   const [repository] = useState(() => createLocalTaskRepository());
   const { projects } = useProjects();
@@ -53,10 +54,12 @@ export function TaskComposer({
       if (task) {
         setInput({ title: task.title, due_date: task.due_date, due_time: task.due_time, priority: task.priority, area: task.area, notes: task.notes, related_label: task.related_label, project_id: task.project_id, goal_id: task.goal_id, subject_enrollment_id: task.subject_enrollment_id, room_item_id: task.room_item_id });
         setOtherDate(task.due_date && !dateOptions.includes(task.due_date) ? task.due_date : '');
+        setDatePickerOpen(Boolean(task.due_date && !dateOptions.includes(task.due_date)));
         setDetailsOpen(Boolean(task.due_time || task.notes || task.related_label || task.project_id || task.goal_id));
       } else {
         setInput(blankInput(roomItemId, projectId, goalId));
         setOtherDate('');
+        setDatePickerOpen(false);
         setDetailsOpen(false);
       }
       setError('');
@@ -91,14 +94,14 @@ export function TaskComposer({
         <legend>¿Cuándo?</legend>
         <div className="task-date-line" role="radiogroup" aria-label="Fecha de la tarea">
           {dateOptions.map((date, index) => (
-            <button key={date} type="button" className={selectedDate === date ? 'active' : ''} onClick={() => setField('due_date', date)} role="radio" aria-checked={selectedDate === date}>
+            <button key={date} type="button" className={selectedDate === date ? 'active' : ''} onClick={() => { setField('due_date', date); setOtherDate(''); setDatePickerOpen(false); }} role="radio" aria-checked={selectedDate === date}>
               <strong>{index === 0 ? 'Hoy' : index === 1 ? 'Mañana' : new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: 'numeric' }).format(new Date(`${date}T12:00:00`))}</strong>
               <span>{index > 1 ? new Intl.DateTimeFormat('es-MX', { month: 'short' }).format(new Date(`${date}T12:00:00`)) : ''}</span>
             </button>
           ))}
-          <button type="button" className={selectedDate && !dateOptions.includes(selectedDate) ? 'active' : ''} onClick={() => setField('due_date', otherDate || null)} role="radio" aria-checked={Boolean(selectedDate && !dateOptions.includes(selectedDate))}>Otra fecha</button>
+          <button type="button" className={datePickerOpen || Boolean(selectedDate && !dateOptions.includes(selectedDate)) ? 'active' : ''} onClick={() => { const customDate = otherDate || (selectedDate && !dateOptions.includes(selectedDate) ? selectedDate : addDays(today(), 4)); setOtherDate(customDate); setField('due_date', customDate); setDatePickerOpen(true); }} role="radio" aria-checked={datePickerOpen || Boolean(selectedDate && !dateOptions.includes(selectedDate))}>Otra fecha</button>
         </div>
-        {selectedDate && !dateOptions.includes(selectedDate) || otherDate ? <input className="task-date-input" type="date" value={otherDate || selectedDate || ''} onChange={(event) => { setOtherDate(event.target.value); setField('due_date', event.target.value || null); }} /> : null}
+        {datePickerOpen && <input aria-label="Elegir otra fecha" className="task-date-input" type="date" value={otherDate || (selectedDate && !dateOptions.includes(selectedDate) ? selectedDate : '')} onChange={(event) => { setOtherDate(event.target.value); setField('due_date', event.target.value || null); }} />}
       </fieldset>
 
       <fieldset className="task-form-fieldset">

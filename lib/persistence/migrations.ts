@@ -18,7 +18,7 @@ import { isGoal } from '../../features/goals/domain';
 import { BIS_MODULES, BIS_SUBJECTS } from '../../features/school/catalog';
 import { isSchoolModule, isSchoolSubject, isSubjectEnrollment } from '../../features/school/domain';
 import { isIdea } from '../../features/ideas/domain';
-import { DEFAULT_APP_SETTINGS } from '../../features/settings/domain';
+import { DEFAULT_APP_SETTINGS, normalizeAppSettings } from '../../features/settings/domain';
 import {
   LEGACY_DATABASE_KEYS,
   LOCAL_DATABASE_KEY,
@@ -290,7 +290,12 @@ export function isLocalDatabase(value: unknown): value is LocalDatabase {
 }
 
 export function migrateCurrentDatabase(value: unknown): LocalDatabase | null {
-  if (isLocalDatabase(value)) return value;
+  if (isLocalDatabase(value)) {
+    const settings = normalizeAppSettings(value.settings);
+    return value.settings.appearance === settings.appearance && value.settings.accent === settings.accent
+      ? value
+      : { ...value, settings };
+  }
   if (isLocalDatabaseV3(value)) return migrateV3ToV4(value);
   if (isLocalDatabaseV2(value)) return migrateV3ToV4(migrateV2ToV3(value));
   if (isLocalDatabaseV1(value)) return migrateV1ToV4(value);

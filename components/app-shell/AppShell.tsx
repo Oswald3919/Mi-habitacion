@@ -57,7 +57,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [taskRepository] = useState(() => createLocalTaskRepository());
   const { settings } = useSettings();
 
-  useEffect(() => { document.documentElement.dataset.appearance = settings.appearance; }, [settings.appearance]);
+  useEffect(() => {
+    document.documentElement.dataset.appearance = settings.appearance;
+    document.documentElement.dataset.accent = settings.accent;
+  }, [settings.appearance, settings.accent]);
 
   useEffect(() => {
     const openCreate = (event: Event) => { const detail = (event as CustomEvent<{ roomItemId?: string; projectId?: string; goalId?: string }>).detail; setEditingTask(null); setRoomItemId(detail?.roomItemId ?? null); setTaskProjectId(detail?.projectId ?? null); setTaskGoalId(detail?.goalId ?? null); setTaskComposerOpen(true); };
