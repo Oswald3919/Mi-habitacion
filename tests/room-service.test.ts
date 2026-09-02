@@ -91,4 +91,20 @@ describe('room service', () => {
     expect(unchanged.statusHistory).toEqual([]);
     expect(unchanged.activity).toEqual([]);
   });
+
+  it('can put an editable room item in order through the existing service', () => {
+    const mutation = prepareRoomStatusChange(
+      LOCAL_PROFILE_ID,
+      session({ state: { ...DEFAULT_ROOM_STATE, cubbies: 'review' } }),
+      'cubbies',
+      'ok',
+      1000,
+      ids(),
+    );
+
+    expect(mutation.session.state.cubbies).toBe('ok');
+    expect(mutation.statusHistory).toHaveLength(1);
+    expect(mutation.statusHistory[0]).toMatchObject({ entity_type: 'item', entity_id: 'cubbies', status: 'ok' });
+    expect(mutation.activity[0]).toMatchObject({ action: 'room.status_changed', entity_type: 'room_item', entity_id: 'cubbies' });
+  });
 });

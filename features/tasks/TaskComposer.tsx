@@ -5,6 +5,7 @@ import { BottomSheet } from '../../components/ui/BottomSheet';
 import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
 import { createLocalTaskRepository } from '../../lib/persistence/local-task-repository';
 import { addDays, TASK_AREAS, TASK_PRIORITY_LABEL, type NewTaskInput, type Task, type TaskPriority } from './domain';
+import { ROOM_ITEM_LABELS, isRoomItemId } from '../room/domain';
 import { notifyTasksChanged } from './events';
 import { prepareTaskCreate, prepareTaskUpdate } from './service';
 
@@ -16,17 +17,19 @@ function createId(): string {
   return globalThis.crypto.randomUUID();
 }
 
-const blankInput = (): NewTaskInput => ({
-  title: '', due_date: today(), due_time: null, priority: 'normal', area: 'Personal', notes: null, related_label: null,
+const blankInput = (roomItemId: string | null = null): NewTaskInput => ({
+  title: '', due_date: today(), due_time: null, priority: 'normal', area: roomItemId ? 'Habitación' : 'Personal', notes: null, related_label: roomItemId && isRoomItemId(roomItemId) ? ROOM_ITEM_LABELS[roomItemId] : null, room_item_id: roomItemId,
 });
 
 export function TaskComposer({
   open,
   task,
+  roomItemId = null,
   onClose,
 }: {
   open: boolean;
   task: Task | null;
+  roomItemId?: string | null;
   onClose: () => void;
 }) {
   const [input, setInput] = useState<NewTaskInput>(blankInput);
@@ -40,17 +43,17 @@ export function TaskComposer({
     if (!open) return;
     queueMicrotask(() => {
       if (task) {
-        setInput({ title: task.title, due_date: task.due_date, due_time: task.due_time, priority: task.priority, area: task.area, notes: task.notes, related_label: task.related_label });
+        setInput({ title: task.title, due_date: task.due_date, due_time: task.due_time, priority: task.priority, area: task.area, notes: task.notes, related_label: task.related_label, room_item_id: task.room_item_id });
         setOtherDate(task.due_date && !dateOptions.includes(task.due_date) ? task.due_date : '');
         setDetailsOpen(Boolean(task.due_time || task.notes || task.related_label));
       } else {
-        setInput(blankInput());
+        setInput(blankInput(roomItemId));
         setOtherDate('');
         setDetailsOpen(false);
       }
       setError('');
     });
-  }, [open, task, dateOptions]);
+  }, [open, task, roomItemId, dateOptions]);
 
   const setField = <K extends keyof NewTaskInput>(field: K, value: NewTaskInput[K]) => {
     setInput((current) => ({ ...current, [field]: value }));

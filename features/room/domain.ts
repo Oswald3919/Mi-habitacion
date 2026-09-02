@@ -60,6 +60,15 @@ export const ROOM_ITEM_IDS: RoomItemId[] = [
   'cubbies',
 ];
 
+export const ROOM_ITEM_LABELS: Record<RoomItemId, string> = {
+  tvUnit: 'Mueble de TV',
+  shoeShelf: 'Estantería / mueble de zapatos',
+  dresser: 'Cómoda',
+  hanging: 'Ropa colgada',
+  laundry: 'Ropa sucia',
+  cubbies: 'Cubículos',
+};
+
 export const ROOM_CHILDREN: Partial<Record<RoomZoneId, RoomItemId[]>> = {
   tv: ['tvUnit', 'shoeShelf'],
   closet: ['dresser', 'hanging', 'laundry', 'cubbies'],
@@ -92,6 +101,10 @@ const ROOM_STATUS_RANK: Record<RoomStatus, number> = {
 
 export function isRoomStatus(value: unknown): value is RoomStatus {
   return typeof value === 'string' && ROOM_STATUSES.includes(value as RoomStatus);
+}
+
+export function isRoomItemId(value: RoomEntityId | string | undefined): value is RoomItemId {
+  return typeof value === 'string' && ROOM_ITEM_IDS.includes(value as RoomItemId);
 }
 
 export function worstRoomStatus(statuses: RoomStatus[]): RoomStatus {

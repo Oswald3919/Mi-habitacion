@@ -7,9 +7,9 @@ const ids = () => { let value = 0; return () => `id-${++value}`; };
 describe('task service', () => {
   it('creates a normalized task with future relation slots', () => {
     const mutation = prepareTaskCreate(LOCAL_PROFILE_ID, {
-      title: '  Comprar carpetas  ', due_date: '', due_time: '', priority: 'urgent', area: 'Personal', notes: '  Para el sábado ', related_label: '  Prepa  ',
+      title: '  Comprar carpetas  ', due_date: '', due_time: '', priority: 'urgent', area: 'Personal', notes: '  Para el sábado ', related_label: '  Prepa  ', room_item_id: 'cubbies',
     }, '2026-09-02T12:00:00.000Z', ids());
-    expect(mutation.task).toMatchObject({ title: 'Comprar carpetas', status: 'pending', due_date: null, due_time: null, priority: 'urgent', notes: 'Para el sábado', related_label: 'Prepa', project_id: null, goal_id: null, subject_enrollment_id: null, room_item_id: null });
+    expect(mutation.task).toMatchObject({ title: 'Comprar carpetas', status: 'pending', due_date: null, due_time: null, priority: 'urgent', notes: 'Para el sábado', related_label: 'Prepa', project_id: null, goal_id: null, subject_enrollment_id: null, room_item_id: 'cubbies' });
     expect(mutation.activity).toMatchObject({ action: 'task.created', entity_type: 'task', entity_id: mutation.task.id });
   });
 

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { StatusChip } from '../../components/ui/StatusChip';
 import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
-import { requestTaskCreation, requestTaskEdit, notifyTasksChanged } from './events';
+import { requestTaskCreation, requestTaskEdit, notifyTasksChanged, requestRoomCompletionConfirmation } from './events';
 import { localToday, isToday, isUpcoming, TASK_PRIORITY_LABEL, type Task, type TaskStatus } from './domain';
 import { useTasks } from './use-tasks';
 import { prepareTaskStatusChange } from './service';
@@ -45,6 +45,7 @@ export function TasksPage() {
     if (mutation.activity) {
       await repository.save(mutation.task, mutation.activity);
       notifyTasksChanged();
+      if (status === 'completed' && task.room_item_id) requestRoomCompletionConfirmation(task.id, task.room_item_id);
     }
   };
 

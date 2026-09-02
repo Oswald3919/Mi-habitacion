@@ -54,7 +54,7 @@ export function prepareTaskCreate(
     project_id: null,
     goal_id: null,
     subject_enrollment_id: null,
-    room_item_id: null,
+    room_item_id: input.room_item_id ?? null,
     created_at: now,
     updated_at: now,
   };
