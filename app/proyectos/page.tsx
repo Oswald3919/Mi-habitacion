@@ -1,2 +1,2 @@
-import { ModulePlaceholder } from '../../components/modules/ModulePlaceholder';
-export default function Page(){return <ModulePlaceholder title="Proyectos" description="Aquí cada proyecto tendrá su propio espacio para avanzar."/>}
+import { ProjectsPage } from '../../features/projects/ProjectsPage';
+export default function Page(){return <ProjectsPage/>}

@@ -1,5 +1,8 @@
 import type { ActivityLogEntry } from '../../features/activity/domain';
 import type { Task } from '../../features/tasks/domain';
+import type { FinanceAccount, FinanceSavingGoal, FinanceTransaction, RecurringPayment } from '../../features/finance/domain';
+import type { Project } from '../../features/projects/domain';
+import type { Goal } from '../../features/goals/domain';
 import type {
   RoomDayRecord,
   RoomItemId,
@@ -8,7 +11,7 @@ import type {
   RoomZoneId,
 } from '../../features/room/domain';
 
-export const LOCAL_DATABASE_VERSION = 2 as const;
+export const LOCAL_DATABASE_VERSION = 3 as const;
 export const LOCAL_DATABASE_KEY = 'mi-habitacion:database';
 export const LEGACY_DATABASE_KEYS = [
   'mi-habitacion:v3',
@@ -55,11 +58,21 @@ export type LocalDatabaseV1 = {
 };
 
 export type LocalDatabaseV2 = Omit<LocalDatabaseV1, 'schema_version'> & {
-  schema_version: typeof LOCAL_DATABASE_VERSION;
+  schema_version: 2;
   tasks: Task[];
 };
 
-export type LocalDatabase = LocalDatabaseV2;
+export type LocalDatabaseV3 = Omit<LocalDatabaseV2, 'schema_version'> & {
+  schema_version: typeof LOCAL_DATABASE_VERSION;
+  finance_accounts: FinanceAccount[];
+  finance_transactions: FinanceTransaction[];
+  recurring_payments: RecurringPayment[];
+  finance_saving_goals: FinanceSavingGoal[];
+  projects: Project[];
+  goals: Goal[];
+};
+
+export type LocalDatabase = LocalDatabaseV3;
 
 export interface StorageLike {
   getItem(key: string): string | null;

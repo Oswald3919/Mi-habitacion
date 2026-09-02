@@ -15,6 +15,14 @@ export function requestTaskCreationForRoom(roomItemId: string): void {
   window.dispatchEvent(new CustomEvent(TASK_CREATE_EVENT, { detail: { roomItemId } }));
 }
 
+export function requestTaskCreationForProject(projectId: string): void {
+  window.dispatchEvent(new CustomEvent(TASK_CREATE_EVENT, { detail: { projectId } }));
+}
+
+export function requestTaskCreationForGoal(goalId: string): void {
+  window.dispatchEvent(new CustomEvent(TASK_CREATE_EVENT, { detail: { goalId } }));
+}
+
 export function requestRoomCompletionConfirmation(taskId: string, roomItemId: string): void {
   window.dispatchEvent(new CustomEvent(TASK_COMPLETED_EVENT, { detail: { taskId, roomItemId } }));
 }

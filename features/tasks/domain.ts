@@ -40,7 +40,12 @@ export type NewTaskInput = Pick<
   | 'area'
   | 'notes'
   | 'related_label'
-> & { room_item_id?: string | null };
+> & {
+  project_id?: string | null;
+  goal_id?: string | null;
+  subject_enrollment_id?: string | null;
+  room_item_id?: string | null;
+};
 
 export type TaskUpdateInput = Partial<NewTaskInput>;
 

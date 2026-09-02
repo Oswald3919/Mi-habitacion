@@ -12,6 +12,9 @@ import {
   type RoomZoneId,
 } from '../../features/room/domain';
 import { isTask } from '../../features/tasks/domain';
+import { isFinanceAccount, isFinanceSavingGoal, isFinanceTransaction, isRecurringPayment } from '../../features/finance/domain';
+import { isProject } from '../../features/projects/domain';
+import { isGoal } from '../../features/goals/domain';
 import {
   LEGACY_DATABASE_KEYS,
   LOCAL_DATABASE_KEY,
@@ -23,6 +26,7 @@ import {
   type StoredRoomItem,
   type StoredRoomZone,
   type LocalDatabaseV1,
+  type LocalDatabaseV2,
 } from './schema';
 
 const ZONE_NAMES: Record<RoomZoneId, string> = {
@@ -52,8 +56,21 @@ type LegacyPayload = {
   notifications?: unknown;
 };
 
-function migrateV1ToV2(database: LocalDatabaseV1): LocalDatabase {
-  return { ...database, schema_version: LOCAL_DATABASE_VERSION, tasks: [] };
+function migrateV2ToV3(database: LocalDatabaseV2): LocalDatabase {
+  return {
+    ...database,
+    schema_version: LOCAL_DATABASE_VERSION,
+    finance_accounts: [],
+    finance_transactions: [],
+    recurring_payments: [],
+    finance_saving_goals: [],
+    projects: [],
+    goals: [],
+  };
+}
+
+function migrateV1ToV3(database: LocalDatabaseV1): LocalDatabase {
+  return migrateV2ToV3({ ...database, schema_version: 2, tasks: [] });
 }
 
 function parseJson(value: string | null): unknown {
@@ -183,6 +200,12 @@ export function migrateLegacyPayload(
       room_notifications: Boolean(payload?.notifications),
     },
     tasks: [],
+    finance_accounts: [],
+    finance_transactions: [],
+    recurring_payments: [],
+    finance_saving_goals: [],
+    projects: [],
+    goals: [],
   };
 }
 
@@ -207,16 +230,29 @@ export function isLocalDatabaseV1(value: unknown): value is LocalDatabaseV1 {
   return hasCommonDatabaseShape(value);
 }
 
+export function isLocalDatabaseV2(value: unknown): value is LocalDatabaseV2 {
+  if (!isRecord(value) || value.schema_version !== 2) return false;
+  return hasCommonDatabaseShape(value) && Array.isArray(value.tasks) && value.tasks.every(isTask);
+}
+
 export function isLocalDatabase(value: unknown): value is LocalDatabase {
   if (!isRecord(value) || value.schema_version !== LOCAL_DATABASE_VERSION) {
     return false;
   }
-  return hasCommonDatabaseShape(value) && Array.isArray(value.tasks) && value.tasks.every(isTask);
+  return hasCommonDatabaseShape(value)
+    && Array.isArray(value.tasks) && value.tasks.every(isTask)
+    && Array.isArray(value.finance_accounts) && value.finance_accounts.every(isFinanceAccount)
+    && Array.isArray(value.finance_transactions) && value.finance_transactions.every(isFinanceTransaction)
+    && Array.isArray(value.recurring_payments) && value.recurring_payments.every(isRecurringPayment)
+    && Array.isArray(value.finance_saving_goals) && value.finance_saving_goals.every(isFinanceSavingGoal)
+    && Array.isArray(value.projects) && value.projects.every(isProject)
+    && Array.isArray(value.goals) && value.goals.every(isGoal);
 }
 
 export function migrateCurrentDatabase(value: unknown): LocalDatabase | null {
   if (isLocalDatabase(value)) return value;
-  if (isLocalDatabaseV1(value)) return migrateV1ToV2(value);
+  if (isLocalDatabaseV2(value)) return migrateV2ToV3(value);
+  if (isLocalDatabaseV1(value)) return migrateV1ToV3(value);
   return null;
 }
 

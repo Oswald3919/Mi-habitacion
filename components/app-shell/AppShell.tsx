@@ -13,6 +13,18 @@ import { createLocalRoomRepository } from '../../lib/persistence/local-repositor
 import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
 import { prepareRoomStatusChange } from '../../features/room/service';
 import { ROOM_ITEM_LABELS, isRoomItemId, type RoomItemId } from '../../features/room/domain';
+import { FinanceComposer } from '../../features/finance/FinanceComposer';
+import { FINANCE_CREATE_EVENT, FINANCE_EDIT_EVENT } from '../../features/finance/events';
+import type { FinanceTransaction, FinanceTransactionType } from '../../features/finance/domain';
+import { createLocalFinanceRepository } from '../../lib/persistence/local-finance-repository';
+import { ProjectComposer } from '../../features/projects/ProjectComposer';
+import { PROJECT_CREATE_EVENT, PROJECT_EDIT_EVENT } from '../../features/projects/events';
+import type { Project } from '../../features/projects/domain';
+import { createLocalProjectRepository } from '../../lib/persistence/local-project-repository';
+import { GoalComposer } from '../../features/goals/GoalComposer';
+import { GOAL_CREATE_EVENT, GOAL_EDIT_EVENT } from '../../features/goals/events';
+import type { Goal } from '../../features/goals/domain';
+import { createLocalGoalRepository } from '../../lib/persistence/local-goal-repository';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -20,17 +32,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [taskComposerOpen, setTaskComposerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [roomItemId, setRoomItemId] = useState<string | null>(null);
+  const [taskProjectId, setTaskProjectId] = useState<string | null>(null);
+  const [taskGoalId, setTaskGoalId] = useState<string | null>(null);
+  const [financeOpen, setFinanceOpen] = useState(false);
+  const [financeKind, setFinanceKind] = useState<FinanceTransactionType | 'payment'>('expense');
+  const [financeProjectId, setFinanceProjectId] = useState<string | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<FinanceTransaction | null>(null);
+  const [projectOpen, setProjectOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [completionPrompt, setCompletionPrompt] = useState<{ taskId: string; roomItemId: RoomItemId } | null>(null);
   const [taskRepository] = useState(() => createLocalTaskRepository());
 
   useEffect(() => {
-    const openCreate = (event: Event) => { const detail = (event as CustomEvent<{ roomItemId?: string }>).detail; setEditingTask(null); setRoomItemId(detail?.roomItemId ?? null); setTaskComposerOpen(true); };
+    const openCreate = (event: Event) => { const detail = (event as CustomEvent<{ roomItemId?: string; projectId?: string; goalId?: string }>).detail; setEditingTask(null); setRoomItemId(detail?.roomItemId ?? null); setTaskProjectId(detail?.projectId ?? null); setTaskGoalId(detail?.goalId ?? null); setTaskComposerOpen(true); };
     const openEdit = (event: Event) => {
       const taskId = (event as CustomEvent<{ taskId: string }>).detail?.taskId;
       if (!taskId) return;
       void taskRepository.list().then((tasks) => {
         const task = tasks.find((entry) => entry.id === taskId);
-        if (task) { setEditingTask(task); setRoomItemId(null); setTaskComposerOpen(true); }
+        if (task) { setEditingTask(task); setRoomItemId(null); setTaskProjectId(null); setTaskGoalId(null); setTaskComposerOpen(true); }
       }).catch(() => {});
     };
     const promptCompletion = (event: Event) => {
@@ -42,6 +64,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener(TASK_COMPLETED_EVENT, promptCompletion);
     return () => { window.removeEventListener(TASK_CREATE_EVENT, openCreate); window.removeEventListener(TASK_EDIT_EVENT, openEdit); window.removeEventListener(TASK_COMPLETED_EVENT, promptCompletion); };
   }, [taskRepository]);
+
+  useEffect(() => {
+    const financeRepository = createLocalFinanceRepository(); const projectRepository = createLocalProjectRepository(); const goalRepository = createLocalGoalRepository();
+    const createFinance = (event: Event) => { const detail = (event as CustomEvent<{ kind?: FinanceTransactionType | 'payment'; projectId?: string | null }>).detail; setFinanceKind(detail?.kind ?? 'expense'); setFinanceProjectId(detail?.projectId ?? null); setEditingTransaction(null); setFinanceOpen(true); };
+    const editFinance = (event: Event) => { const id = (event as CustomEvent<{ transactionId?: string }>).detail?.transactionId; if (id) void financeRepository.load().then((data) => { const item = data.transactions.find((entry) => entry.id === id); if (item) { setEditingTransaction(item); setFinanceKind(item.type); setFinanceProjectId(null); setFinanceOpen(true); } }); };
+    const createProject = () => { setEditingProject(null); setProjectOpen(true); };
+    const editProject = (event: Event) => { const id = (event as CustomEvent<{ projectId?: string }>).detail?.projectId; if (id) void projectRepository.list().then((items) => { const item = items.find((entry) => entry.id === id); if (item) { setEditingProject(item); setProjectOpen(true); } }); };
+    const createGoal = () => { setEditingGoal(null); setGoalOpen(true); };
+    const editGoal = (event: Event) => { const id = (event as CustomEvent<{ goalId?: string }>).detail?.goalId; if (id) void goalRepository.list().then((items) => { const item = items.find((entry) => entry.id === id); if (item) { setEditingGoal(item); setGoalOpen(true); } }); };
+    window.addEventListener(FINANCE_CREATE_EVENT, createFinance); window.addEventListener(FINANCE_EDIT_EVENT, editFinance); window.addEventListener(PROJECT_CREATE_EVENT, createProject); window.addEventListener(PROJECT_EDIT_EVENT, editProject); window.addEventListener(GOAL_CREATE_EVENT, createGoal); window.addEventListener(GOAL_EDIT_EVENT, editGoal);
+    return () => { window.removeEventListener(FINANCE_CREATE_EVENT, createFinance); window.removeEventListener(FINANCE_EDIT_EVENT, editFinance); window.removeEventListener(PROJECT_CREATE_EVENT, createProject); window.removeEventListener(PROJECT_EDIT_EVENT, editProject); window.removeEventListener(GOAL_CREATE_EVENT, createGoal); window.removeEventListener(GOAL_EDIT_EVENT, editGoal); };
+  }, []);
 
   const confirmRoomOrder = async () => {
     if (!completionPrompt) return;
@@ -62,7 +96,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <MoreMenu open={moreOpen} onClose={() => setMoreOpen(false)} />
       <ContextualCreateSheet open={createOpen} onClose={() => setCreateOpen(false)} />
-      <TaskComposer open={taskComposerOpen} task={editingTask} roomItemId={roomItemId} onClose={() => { setTaskComposerOpen(false); setEditingTask(null); setRoomItemId(null); }} />
+      <TaskComposer open={taskComposerOpen} task={editingTask} roomItemId={roomItemId} projectId={taskProjectId} goalId={taskGoalId} onClose={() => { setTaskComposerOpen(false); setEditingTask(null); setRoomItemId(null); setTaskProjectId(null); setTaskGoalId(null); }} />
+      <FinanceComposer open={financeOpen} kind={financeKind} transaction={editingTransaction} projectId={financeProjectId} onClose={() => { setFinanceOpen(false); setEditingTransaction(null); setFinanceProjectId(null); }} />
+      <ProjectComposer open={projectOpen} project={editingProject} onClose={() => { setProjectOpen(false); setEditingProject(null); }} />
+      <GoalComposer open={goalOpen} goal={editingGoal} onClose={() => { setGoalOpen(false); setEditingGoal(null); }} />
       <BottomSheet open={Boolean(completionPrompt)} title="Tarea completada" onClose={() => setCompletionPrompt(null)}>
         {completionPrompt && <><p className="contextual-note">¿También quieres poner {ROOM_ITEM_LABELS[completionPrompt.roomItemId]} en En orden?</p><button className="task-save-button" onClick={confirmRoomOrder}>Sí, poner en En orden</button><button className="task-details-toggle" onClick={() => setCompletionPrompt(null)}>Ahora no</button></>}
       </BottomSheet>

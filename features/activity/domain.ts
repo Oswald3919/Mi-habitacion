@@ -1,4 +1,12 @@
-export type ActivityEntityType = 'room_zone' | 'room_item' | 'task';
+export type ActivityEntityType =
+  | 'room_zone'
+  | 'room_item'
+  | 'task'
+  | 'finance_transaction'
+  | 'recurring_payment'
+  | 'saving_goal'
+  | 'project'
+  | 'goal';
 export type ActivityAction =
   | 'room.status_changed'
   | 'room.day_reset'
@@ -6,7 +14,18 @@ export type ActivityAction =
   | 'task.completed'
   | 'task.reopened'
   | 'task.updated'
-  | 'task.deleted';
+  | 'task.deleted'
+  | 'finance.transaction_created'
+  | 'finance.transaction_updated'
+  | 'finance.transaction_deleted'
+  | 'finance.payment_marked'
+  | 'finance.saving_updated'
+  | 'project.created'
+  | 'project.updated'
+  | 'project.status_changed'
+  | 'goal.created'
+  | 'goal.updated'
+  | 'goal.progress_updated';
 
 export type ActivityLogEntry = {
   id: string;
