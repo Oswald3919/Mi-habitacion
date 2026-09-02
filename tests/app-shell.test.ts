@@ -4,7 +4,7 @@ import { getCreateOptions, MORE_LINKS } from '../components/app-shell/navigation
 describe('app shell navigation', () => {
   it('exposes all destinations in Más', () => {
     expect(MORE_LINKS.map(([, href]) => href)).toEqual([
-      '/metas', '/proyectos', '/prepa', '/habitacion', '/ideas', '/historial', '/ajustes',
+      '/tareas', '/finanzas', '/metas', '/proyectos', '/prepa', '/habitacion', '/ideas', '/historial', '/ajustes',
     ]);
   });
 
