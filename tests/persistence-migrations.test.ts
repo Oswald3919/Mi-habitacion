@@ -78,7 +78,7 @@ describe('local persistence migrations', () => {
     expect(second.current_date).toBe('2026-09-02');
   });
 
-  it('upgrades the phase 1 database to v3 without touching room collections', () => {
+  it('upgrades the phase 1 database to v4 without touching room collections', () => {
     const v1 = migrateLegacyPayload({ date: '2026-09-02', state: { bed: 'ok' } }, '2026-09-02');
     const v1Payload = { ...v1, schema_version: 1 as const };
     const upgraded = migrateCurrentDatabase(v1Payload);
@@ -88,12 +88,12 @@ describe('local persistence migrations', () => {
     expect(upgraded?.room_daily_snapshots).toEqual(v1.room_daily_snapshots);
   });
 
-  it('upgrades the tasks database to v3 with empty new collections', () => {
+  it('upgrades the tasks database to v4 with protected tasks and seeded BIS catalog', () => {
     const current = migrateLegacyPayload({ date: '2026-09-02' }, '2026-09-02');
     const task = { id: 'task-1', profile_id: LOCAL_PROFILE_ID, title: 'Dato protegido', status: 'pending' as const, due_date: null, due_time: null, priority: 'normal' as const, area: 'Personal', notes: null, related_label: null, project_id: null, goal_id: null, subject_enrollment_id: null, room_item_id: null, created_at: '2026-09-02T12:00:00.000Z', updated_at: '2026-09-02T12:00:00.000Z' };
     const v2 = { ...current, schema_version: 2 as const, tasks: [task] };
     const upgraded = migrateCurrentDatabase(v2);
-    expect(upgraded?.schema_version).toBe(3);
+    expect(upgraded?.schema_version).toBe(4);
     expect(upgraded?.tasks).toEqual([task]);
     expect(upgraded?.finance_accounts).toEqual([]);
     expect(upgraded?.finance_transactions).toEqual([]);
@@ -101,6 +101,10 @@ describe('local persistence migrations', () => {
     expect(upgraded?.finance_saving_goals).toEqual([]);
     expect(upgraded?.projects).toEqual([]);
     expect(upgraded?.goals).toEqual([]);
+    expect(upgraded?.school_modules).toHaveLength(6);
+    expect(upgraded?.school_subjects.some((subject) => subject.name === 'Cultura Digital I')).toBe(true);
+    expect(upgraded?.subject_enrollments).toEqual([]);
+    expect(upgraded?.ideas).toEqual([]);
   });
 
   it('sanitizes partial legacy data and fills safe defaults', () => {

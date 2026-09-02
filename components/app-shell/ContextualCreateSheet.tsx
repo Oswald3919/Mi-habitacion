@@ -7,8 +7,10 @@ import { requestTaskCreation } from '../../features/tasks/events';
 import { requestFinanceCreation } from '../../features/finance/events';
 import { requestProjectCreation } from '../../features/projects/events';
 import { requestGoalCreation } from '../../features/goals/events';
+import { requestIdeaCreation } from '../../features/ideas/events';
+import { requestSchoolEnrollment, requestSchoolGrade } from '../../features/school/events';
 
-const enabled = new Set(['Tarea', 'Movimiento financiero', 'Gasto', 'Ingreso', 'Ahorro', 'Pago', 'Meta', 'Proyecto']);
+const enabled = new Set(['Tarea', 'Movimiento financiero', 'Gasto', 'Ingreso', 'Ahorro', 'Pago', 'Meta', 'Proyecto', 'Idea', 'Configurar materia', 'Registrar calificación']);
 
 function runCreate(option: string): void {
   if (option === 'Tarea') requestTaskCreation();
@@ -18,6 +20,9 @@ function runCreate(option: string): void {
   else if (option === 'Pago') requestFinanceCreation('payment');
   else if (option === 'Meta') requestGoalCreation();
   else if (option === 'Proyecto') requestProjectCreation();
+  else if (option === 'Idea') requestIdeaCreation();
+  else if (option === 'Configurar materia') requestSchoolEnrollment();
+  else if (option === 'Registrar calificación') requestSchoolGrade();
 }
 
 export function ContextualCreateSheet({ open, onClose }: { open: boolean; onClose: () => void }) {

@@ -3,6 +3,9 @@ import type { Task } from '../../features/tasks/domain';
 import type { FinanceAccount, FinanceSavingGoal, FinanceTransaction, RecurringPayment } from '../../features/finance/domain';
 import type { Project } from '../../features/projects/domain';
 import type { Goal } from '../../features/goals/domain';
+import type { SchoolModule, SchoolSubject, SubjectEnrollment } from '../../features/school/domain';
+import type { Idea } from '../../features/ideas/domain';
+import type { AppSettings } from '../../features/settings/domain';
 import type {
   RoomDayRecord,
   RoomItemId,
@@ -11,7 +14,7 @@ import type {
   RoomZoneId,
 } from '../../features/room/domain';
 
-export const LOCAL_DATABASE_VERSION = 3 as const;
+export const LOCAL_DATABASE_VERSION = 4 as const;
 export const LOCAL_DATABASE_KEY = 'mi-habitacion:database';
 export const LEGACY_DATABASE_KEYS = [
   'mi-habitacion:v3',
@@ -63,7 +66,7 @@ export type LocalDatabaseV2 = Omit<LocalDatabaseV1, 'schema_version'> & {
 };
 
 export type LocalDatabaseV3 = Omit<LocalDatabaseV2, 'schema_version'> & {
-  schema_version: typeof LOCAL_DATABASE_VERSION;
+  schema_version: 3;
   finance_accounts: FinanceAccount[];
   finance_transactions: FinanceTransaction[];
   recurring_payments: RecurringPayment[];
@@ -72,7 +75,16 @@ export type LocalDatabaseV3 = Omit<LocalDatabaseV2, 'schema_version'> & {
   goals: Goal[];
 };
 
-export type LocalDatabase = LocalDatabaseV3;
+export type LocalDatabaseV4 = Omit<LocalDatabaseV3, 'schema_version' | 'settings'> & {
+  schema_version: typeof LOCAL_DATABASE_VERSION;
+  settings: AppSettings;
+  school_modules: SchoolModule[];
+  school_subjects: SchoolSubject[];
+  subject_enrollments: SubjectEnrollment[];
+  ideas: Idea[];
+};
+
+export type LocalDatabase = LocalDatabaseV4;
 
 export interface StorageLike {
   getItem(key: string): string | null;

@@ -1,0 +1,4 @@
+export type IdeaStatus = 'active' | 'archived' | 'converted';
+export type IdeaConversionType = 'task' | 'goal' | 'project';
+export type Idea = { id: string; profile_id: string; content: string; status: IdeaStatus; area: string | null; project_id: string | null; converted_entity_type: IdeaConversionType | null; converted_entity_id: string | null; created_at: string; updated_at: string };
+export function isIdea(value: unknown): value is Idea { if (!value || typeof value !== 'object') return false; const item = value as Partial<Idea>; return typeof item.id === 'string' && typeof item.profile_id === 'string' && typeof item.content === 'string' && (item.status === 'active' || item.status === 'archived' || item.status === 'converted') && typeof item.created_at === 'string' && typeof item.updated_at === 'string'; }

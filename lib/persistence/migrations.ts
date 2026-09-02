@@ -15,6 +15,10 @@ import { isTask } from '../../features/tasks/domain';
 import { isFinanceAccount, isFinanceSavingGoal, isFinanceTransaction, isRecurringPayment } from '../../features/finance/domain';
 import { isProject } from '../../features/projects/domain';
 import { isGoal } from '../../features/goals/domain';
+import { BIS_MODULES, BIS_SUBJECTS } from '../../features/school/catalog';
+import { isSchoolModule, isSchoolSubject, isSubjectEnrollment } from '../../features/school/domain';
+import { isIdea } from '../../features/ideas/domain';
+import { DEFAULT_APP_SETTINGS } from '../../features/settings/domain';
 import {
   LEGACY_DATABASE_KEYS,
   LOCAL_DATABASE_KEY,
@@ -27,6 +31,7 @@ import {
   type StoredRoomZone,
   type LocalDatabaseV1,
   type LocalDatabaseV2,
+  type LocalDatabaseV3,
 } from './schema';
 
 const ZONE_NAMES: Record<RoomZoneId, string> = {
@@ -56,10 +61,10 @@ type LegacyPayload = {
   notifications?: unknown;
 };
 
-function migrateV2ToV3(database: LocalDatabaseV2): LocalDatabase {
+function migrateV2ToV3(database: LocalDatabaseV2): LocalDatabaseV3 {
   return {
     ...database,
-    schema_version: LOCAL_DATABASE_VERSION,
+    schema_version: 3,
     finance_accounts: [],
     finance_transactions: [],
     recurring_payments: [],
@@ -69,8 +74,20 @@ function migrateV2ToV3(database: LocalDatabaseV2): LocalDatabase {
   };
 }
 
-function migrateV1ToV3(database: LocalDatabaseV1): LocalDatabase {
-  return migrateV2ToV3({ ...database, schema_version: 2, tasks: [] });
+function migrateV3ToV4(database: LocalDatabaseV3): LocalDatabase {
+  return {
+    ...database,
+    schema_version: LOCAL_DATABASE_VERSION,
+    settings: { ...DEFAULT_APP_SETTINGS, room_notifications: database.settings.room_notifications },
+    school_modules: BIS_MODULES,
+    school_subjects: BIS_SUBJECTS,
+    subject_enrollments: [],
+    ideas: [],
+  };
+}
+
+function migrateV1ToV4(database: LocalDatabaseV1): LocalDatabase {
+  return migrateV3ToV4(migrateV2ToV3({ ...database, schema_version: 2, tasks: [] }));
 }
 
 function parseJson(value: string | null): unknown {
@@ -196,9 +213,7 @@ export function migrateLegacyPayload(
     room_status_history: [],
     room_daily_snapshots: buildDailySnapshots(history),
     activity_log: [],
-    settings: {
-      room_notifications: Boolean(payload?.notifications),
-    },
+    settings: { ...DEFAULT_APP_SETTINGS, room_notifications: Boolean(payload?.notifications) },
     tasks: [],
     finance_accounts: [],
     finance_transactions: [],
@@ -206,6 +221,10 @@ export function migrateLegacyPayload(
     finance_saving_goals: [],
     projects: [],
     goals: [],
+    school_modules: BIS_MODULES,
+    school_subjects: BIS_SUBJECTS,
+    subject_enrollments: [],
+    ideas: [],
   };
 }
 
@@ -235,6 +254,18 @@ export function isLocalDatabaseV2(value: unknown): value is LocalDatabaseV2 {
   return hasCommonDatabaseShape(value) && Array.isArray(value.tasks) && value.tasks.every(isTask);
 }
 
+export function isLocalDatabaseV3(value: unknown): value is LocalDatabaseV3 {
+  if (!isRecord(value) || value.schema_version !== 3) return false;
+  return hasCommonDatabaseShape(value)
+    && Array.isArray(value.tasks) && value.tasks.every(isTask)
+    && Array.isArray(value.finance_accounts) && value.finance_accounts.every(isFinanceAccount)
+    && Array.isArray(value.finance_transactions) && value.finance_transactions.every(isFinanceTransaction)
+    && Array.isArray(value.recurring_payments) && value.recurring_payments.every(isRecurringPayment)
+    && Array.isArray(value.finance_saving_goals) && value.finance_saving_goals.every(isFinanceSavingGoal)
+    && Array.isArray(value.projects) && value.projects.every(isProject)
+    && Array.isArray(value.goals) && value.goals.every(isGoal);
+}
+
 export function isLocalDatabase(value: unknown): value is LocalDatabase {
   if (!isRecord(value) || value.schema_version !== LOCAL_DATABASE_VERSION) {
     return false;
@@ -246,13 +277,23 @@ export function isLocalDatabase(value: unknown): value is LocalDatabase {
     && Array.isArray(value.recurring_payments) && value.recurring_payments.every(isRecurringPayment)
     && Array.isArray(value.finance_saving_goals) && value.finance_saving_goals.every(isFinanceSavingGoal)
     && Array.isArray(value.projects) && value.projects.every(isProject)
-    && Array.isArray(value.goals) && value.goals.every(isGoal);
+    && Array.isArray(value.goals) && value.goals.every(isGoal)
+    && Array.isArray(value.school_modules) && value.school_modules.every(isSchoolModule)
+    && Array.isArray(value.school_subjects) && value.school_subjects.every(isSchoolSubject)
+    && Array.isArray(value.subject_enrollments) && value.subject_enrollments.every(isSubjectEnrollment)
+    && Array.isArray(value.ideas) && value.ideas.every(isIdea)
+    && isRecord(value.settings)
+    && typeof value.settings.profile_name === 'string'
+    && Array.isArray(value.settings.visible_modules)
+    && Array.isArray(value.settings.home_module_order)
+    && isRecord(value.settings.school);
 }
 
 export function migrateCurrentDatabase(value: unknown): LocalDatabase | null {
   if (isLocalDatabase(value)) return value;
-  if (isLocalDatabaseV2(value)) return migrateV2ToV3(value);
-  if (isLocalDatabaseV1(value)) return migrateV1ToV3(value);
+  if (isLocalDatabaseV3(value)) return migrateV3ToV4(value);
+  if (isLocalDatabaseV2(value)) return migrateV3ToV4(migrateV2ToV3(value));
+  if (isLocalDatabaseV1(value)) return migrateV1ToV4(value);
   return null;
 }
 

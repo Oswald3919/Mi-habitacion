@@ -6,7 +6,10 @@ export type ActivityEntityType =
   | 'recurring_payment'
   | 'saving_goal'
   | 'project'
-  | 'goal';
+  | 'goal'
+  | 'subject_enrollment'
+  | 'idea'
+  | 'settings';
 export type ActivityAction =
   | 'room.status_changed'
   | 'room.day_reset'
@@ -25,7 +28,16 @@ export type ActivityAction =
   | 'project.status_changed'
   | 'goal.created'
   | 'goal.updated'
-  | 'goal.progress_updated';
+  | 'goal.progress_updated'
+  | 'school.enrollment_configured'
+  | 'school.payment_marked'
+  | 'school.grade_recorded'
+  | 'idea.created'
+  | 'idea.updated'
+  | 'idea.archived'
+  | 'idea.converted'
+  | 'settings.updated'
+  | 'data.imported';
 
 export type ActivityLogEntry = {
   id: string;

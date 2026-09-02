@@ -25,6 +25,13 @@ import { GoalComposer } from '../../features/goals/GoalComposer';
 import { GOAL_CREATE_EVENT, GOAL_EDIT_EVENT } from '../../features/goals/events';
 import type { Goal } from '../../features/goals/domain';
 import { createLocalGoalRepository } from '../../lib/persistence/local-goal-repository';
+import { SchoolComposer } from '../../features/school/SchoolComposer';
+import { SCHOOL_CREATE_EVENT } from '../../features/school/events';
+import { IdeaComposer } from '../../features/ideas/IdeaComposer';
+import { IDEA_CREATE_EVENT, IDEA_EDIT_EVENT } from '../../features/ideas/events';
+import type { Idea } from '../../features/ideas/domain';
+import { createLocalIdeaRepository } from '../../lib/persistence/local-idea-repository';
+import { useSettings } from '../../features/settings/use-settings';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -42,8 +49,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [schoolOpen, setSchoolOpen] = useState(false);
+  const [schoolMode, setSchoolMode] = useState<'enrollment' | 'grade'>('enrollment');
+  const [ideaOpen, setIdeaOpen] = useState(false);
+  const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [completionPrompt, setCompletionPrompt] = useState<{ taskId: string; roomItemId: RoomItemId } | null>(null);
   const [taskRepository] = useState(() => createLocalTaskRepository());
+  const { settings } = useSettings();
+
+  useEffect(() => { document.documentElement.dataset.appearance = settings.appearance; }, [settings.appearance]);
 
   useEffect(() => {
     const openCreate = (event: Event) => { const detail = (event as CustomEvent<{ roomItemId?: string; projectId?: string; goalId?: string }>).detail; setEditingTask(null); setRoomItemId(detail?.roomItemId ?? null); setTaskProjectId(detail?.projectId ?? null); setTaskGoalId(detail?.goalId ?? null); setTaskComposerOpen(true); };
@@ -77,6 +91,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => { window.removeEventListener(FINANCE_CREATE_EVENT, createFinance); window.removeEventListener(FINANCE_EDIT_EVENT, editFinance); window.removeEventListener(PROJECT_CREATE_EVENT, createProject); window.removeEventListener(PROJECT_EDIT_EVENT, editProject); window.removeEventListener(GOAL_CREATE_EVENT, createGoal); window.removeEventListener(GOAL_EDIT_EVENT, editGoal); };
   }, []);
 
+  useEffect(() => {
+    const ideaRepository = createLocalIdeaRepository();
+    const openSchool = (event: Event) => { const mode = (event as CustomEvent<{ mode?: 'enrollment' | 'grade' }>).detail?.mode ?? 'enrollment'; setSchoolMode(mode); setSchoolOpen(true); };
+    const createIdea = () => { setEditingIdea(null); setIdeaOpen(true); };
+    const editIdea = (event: Event) => { const id = (event as CustomEvent<{ ideaId?: string }>).detail?.ideaId; if (id) void ideaRepository.list().then((items) => { const item = items.find((entry) => entry.id === id); if (item) { setEditingIdea(item); setIdeaOpen(true); } }); };
+    window.addEventListener(SCHOOL_CREATE_EVENT, openSchool); window.addEventListener(IDEA_CREATE_EVENT, createIdea); window.addEventListener(IDEA_EDIT_EVENT, editIdea);
+    return () => { window.removeEventListener(SCHOOL_CREATE_EVENT, openSchool); window.removeEventListener(IDEA_CREATE_EVENT, createIdea); window.removeEventListener(IDEA_EDIT_EVENT, editIdea); };
+  }, []);
+
   const confirmRoomOrder = async () => {
     if (!completionPrompt) return;
     const repository = createLocalRoomRepository();
@@ -100,6 +123,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <FinanceComposer open={financeOpen} kind={financeKind} transaction={editingTransaction} projectId={financeProjectId} onClose={() => { setFinanceOpen(false); setEditingTransaction(null); setFinanceProjectId(null); }} />
       <ProjectComposer open={projectOpen} project={editingProject} onClose={() => { setProjectOpen(false); setEditingProject(null); }} />
       <GoalComposer open={goalOpen} goal={editingGoal} onClose={() => { setGoalOpen(false); setEditingGoal(null); }} />
+      <SchoolComposer open={schoolOpen} mode={schoolMode} onClose={() => setSchoolOpen(false)} />
+      <IdeaComposer open={ideaOpen} idea={editingIdea} onClose={() => { setIdeaOpen(false); setEditingIdea(null); }} />
       <BottomSheet open={Boolean(completionPrompt)} title="Tarea completada" onClose={() => setCompletionPrompt(null)}>
         {completionPrompt && <><p className="contextual-note">¿También quieres poner {ROOM_ITEM_LABELS[completionPrompt.roomItemId]} en En orden?</p><button className="task-save-button" onClick={confirmRoomOrder}>Sí, poner en En orden</button><button className="task-details-toggle" onClick={() => setCompletionPrompt(null)}>Ahora no</button></>}
       </BottomSheet>

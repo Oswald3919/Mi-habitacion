@@ -1,0 +1,7 @@
+import type { SettingsRepository } from '../../features/settings/repository';
+import { loadOrMigrateDatabase, migrateCurrentDatabase } from './migrations';
+import { LOCAL_DATABASE_KEY, type StorageLike } from './schema';
+type Options = { storage?: StorageLike; currentDate?: () => string };
+const browserStorage = (): StorageLike => window.localStorage;
+const today = () => new Date().toLocaleDateString('en-CA');
+export function createLocalSettingsRepository(options: Options = {}): SettingsRepository { const storage = () => options.storage ?? browserStorage(); const date = () => (options.currentDate ?? today)(); const load = () => loadOrMigrateDatabase(storage(), date()); return { async load() { return load().settings; }, async save(settings, activity) { const db = load(); db.settings = settings; db.activity_log.push(activity); storage().setItem(LOCAL_DATABASE_KEY, JSON.stringify(db)); }, async exportBackup() { return JSON.stringify(load(), null, 2); }, async importBackup(raw, now, createId) { let parsed: unknown; try { parsed = JSON.parse(raw); } catch { throw new Error('El archivo no contiene JSON válido'); } const migrated = migrateCurrentDatabase(parsed); if (!migrated) throw new Error('El respaldo no es compatible o está incompleto'); migrated.activity_log.push({ id: createId(), profile_id: migrated.profile_id, action: 'data.imported', entity_type: 'settings', entity_id: migrated.profile_id, occurred_at: Date.parse(now), metadata: { schema_version: migrated.schema_version } }); storage().setItem(LOCAL_DATABASE_KEY, JSON.stringify(migrated)); } }; }
