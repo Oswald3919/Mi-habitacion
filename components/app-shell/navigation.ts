@@ -1,4 +1,6 @@
 export const MORE_LINKS = [
+  ['Tareas', '/tareas'],
+  ['Finanzas', '/finanzas'],
   ['Metas', '/metas'],
   ['Proyectos', '/proyectos'],
   ['Prepa', '/prepa'],

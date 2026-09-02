@@ -4,18 +4,20 @@ export function BottomSheet({
   open,
   title,
   onClose,
+  className,
   children,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
+  className?: string;
   children: React.ReactNode;
 }) {
   if (!open) return null;
   return (
     <div className="app-overlay" onMouseDown={onClose}>
       <section
-        className="app-sheet"
+        className={`app-sheet${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="app-sheet-title"
