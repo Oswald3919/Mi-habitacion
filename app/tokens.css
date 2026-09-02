@@ -1,0 +1,14 @@
+:root {
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-paper: var(--paper);
+  --color-card: #fffefa;
+  --color-line: var(--line);
+  --color-ok: var(--ok);
+  --color-review: var(--review);
+  --color-attention: var(--attention);
+  --color-accent: var(--accent);
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --shell-bottom-space: 92px;
+}
