@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
-import { createLocalTaskRepository } from '../../lib/persistence/local-task-repository';
+import { createTaskRepository } from '../../lib/persistence/repositories';
 import { addDays, TASK_AREAS, TASK_PRIORITY_LABEL, type NewTaskInput, type Task, type TaskPriority } from './domain';
 import { ROOM_ITEM_LABELS, isRoomItemId } from '../room/domain';
 import { notifyTasksChanged } from './events';
@@ -43,7 +43,7 @@ export function TaskComposer({
   const [otherDate, setOtherDate] = useState('');
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [error, setError] = useState('');
-  const [repository] = useState(() => createLocalTaskRepository());
+  const [repository] = useState(() => createTaskRepository());
   const { projects } = useProjects();
   const { goals } = useGoals();
   const dateOptions = useMemo(() => [today(), addDays(today(), 1), addDays(today(), 2), addDays(today(), 3)], []);

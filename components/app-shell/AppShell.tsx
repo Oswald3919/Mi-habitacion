@@ -8,30 +8,31 @@ import { BottomSheet } from '../ui/BottomSheet';
 import { TaskComposer } from '../../features/tasks/TaskComposer';
 import { TASK_COMPLETED_EVENT, TASK_CREATE_EVENT, TASK_EDIT_EVENT } from '../../features/tasks/events';
 import type { Task } from '../../features/tasks/domain';
-import { createLocalTaskRepository } from '../../lib/persistence/local-task-repository';
-import { createLocalRoomRepository } from '../../lib/persistence/local-repositories';
+import { createTaskRepository } from '../../lib/persistence/repositories';
+import { createRoomRepository } from '../../lib/persistence/repositories';
 import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
 import { prepareRoomStatusChange } from '../../features/room/service';
 import { ROOM_ITEM_LABELS, isRoomItemId, type RoomItemId } from '../../features/room/domain';
 import { FinanceComposer } from '../../features/finance/FinanceComposer';
 import { FINANCE_CREATE_EVENT, FINANCE_EDIT_EVENT } from '../../features/finance/events';
 import type { FinanceTransaction, FinanceTransactionType } from '../../features/finance/domain';
-import { createLocalFinanceRepository } from '../../lib/persistence/local-finance-repository';
+import { createFinanceRepository } from '../../lib/persistence/repositories';
 import { ProjectComposer } from '../../features/projects/ProjectComposer';
 import { PROJECT_CREATE_EVENT, PROJECT_EDIT_EVENT } from '../../features/projects/events';
 import type { Project } from '../../features/projects/domain';
-import { createLocalProjectRepository } from '../../lib/persistence/local-project-repository';
+import { createProjectRepository } from '../../lib/persistence/repositories';
 import { GoalComposer } from '../../features/goals/GoalComposer';
 import { GOAL_CREATE_EVENT, GOAL_EDIT_EVENT } from '../../features/goals/events';
 import type { Goal } from '../../features/goals/domain';
-import { createLocalGoalRepository } from '../../lib/persistence/local-goal-repository';
+import { createGoalRepository } from '../../lib/persistence/repositories';
 import { SchoolComposer } from '../../features/school/SchoolComposer';
 import { SCHOOL_CREATE_EVENT } from '../../features/school/events';
 import { IdeaComposer } from '../../features/ideas/IdeaComposer';
 import { IDEA_CREATE_EVENT, IDEA_EDIT_EVENT } from '../../features/ideas/events';
 import type { Idea } from '../../features/ideas/domain';
-import { createLocalIdeaRepository } from '../../lib/persistence/local-idea-repository';
+import { createIdeaRepository } from '../../lib/persistence/repositories';
 import { useSettings } from '../../features/settings/use-settings';
+import { DATA_ERROR_EVENT } from '../../lib/supabase/client';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -54,13 +55,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [ideaOpen, setIdeaOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [completionPrompt, setCompletionPrompt] = useState<{ taskId: string; roomItemId: RoomItemId } | null>(null);
-  const [taskRepository] = useState(() => createLocalTaskRepository());
+  const [dataError, setDataError] = useState('');
+  const [taskRepository] = useState(() => createTaskRepository());
   const { settings } = useSettings();
 
   useEffect(() => {
     document.documentElement.dataset.appearance = settings.appearance;
     document.documentElement.dataset.accent = settings.accent;
   }, [settings.appearance, settings.accent]);
+
+  useEffect(() => { const show = (event: Event) => setDataError((event as CustomEvent<string>).detail || 'No se pudo conectar con tus datos.'); window.addEventListener(DATA_ERROR_EVENT, show); return () => window.removeEventListener(DATA_ERROR_EVENT, show); }, []);
 
   useEffect(() => {
     const openCreate = (event: Event) => { const detail = (event as CustomEvent<{ roomItemId?: string; projectId?: string; goalId?: string }>).detail; setEditingTask(null); setRoomItemId(detail?.roomItemId ?? null); setTaskProjectId(detail?.projectId ?? null); setTaskGoalId(detail?.goalId ?? null); setTaskComposerOpen(true); };
@@ -83,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [taskRepository]);
 
   useEffect(() => {
-    const financeRepository = createLocalFinanceRepository(); const projectRepository = createLocalProjectRepository(); const goalRepository = createLocalGoalRepository();
+    const financeRepository = createFinanceRepository(); const projectRepository = createProjectRepository(); const goalRepository = createGoalRepository();
     const createFinance = (event: Event) => { const detail = (event as CustomEvent<{ kind?: FinanceTransactionType | 'payment'; projectId?: string | null }>).detail; setFinanceKind(detail?.kind ?? 'expense'); setFinanceProjectId(detail?.projectId ?? null); setEditingTransaction(null); setFinanceOpen(true); };
     const editFinance = (event: Event) => { const id = (event as CustomEvent<{ transactionId?: string }>).detail?.transactionId; if (id) void financeRepository.load().then((data) => { const item = data.transactions.find((entry) => entry.id === id); if (item) { setEditingTransaction(item); setFinanceKind(item.type); setFinanceProjectId(null); setFinanceOpen(true); } }); };
     const createProject = () => { setEditingProject(null); setProjectOpen(true); };
@@ -95,7 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const ideaRepository = createLocalIdeaRepository();
+    const ideaRepository = createIdeaRepository();
     const openSchool = (event: Event) => { const mode = (event as CustomEvent<{ mode?: 'enrollment' | 'grade' }>).detail?.mode ?? 'enrollment'; setSchoolMode(mode); setSchoolOpen(true); };
     const createIdea = () => { setEditingIdea(null); setIdeaOpen(true); };
     const editIdea = (event: Event) => { const id = (event as CustomEvent<{ ideaId?: string }>).detail?.ideaId; if (id) void ideaRepository.list().then((items) => { const item = items.find((entry) => entry.id === id); if (item) { setEditingIdea(item); setIdeaOpen(true); } }); };
@@ -105,7 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const confirmRoomOrder = async () => {
     if (!completionPrompt) return;
-    const repository = createLocalRoomRepository();
+    const repository = createRoomRepository();
     const session = await repository.loadSession();
     const mutation = prepareRoomStatusChange(LOCAL_PROFILE_ID, session, completionPrompt.roomItemId, 'ok', Date.now(), () => globalThis.crypto.randomUUID());
     await repository.commit(mutation);
@@ -115,6 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell">
       <div className="app-content">{children}</div>
+      {dataError && <button type="button" className="data-error-banner" role="alert" onClick={() => setDataError('')}>{dataError}<span>×</span></button>}
       <BottomNav
         moreOpen={moreOpen}
         onMore={() => setMoreOpen((open) => !open)}

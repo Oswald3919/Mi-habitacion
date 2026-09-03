@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { TASKS_CHANGED_EVENT } from './events';
 import type { Task } from './domain';
-import { createLocalTaskRepository } from '../../lib/persistence/local-task-repository';
+import { createTaskRepository } from '../../lib/persistence/repositories';
 
 export function useTasks() {
-  const [repository] = useState(() => createLocalTaskRepository());
+  const [repository] = useState(() => createTaskRepository());
   const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {

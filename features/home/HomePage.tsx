@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { createLocalRoomRepository } from '../../lib/persistence/local-repositories';
+import { createRoomRepository } from '../../lib/persistence/repositories';
 import { calculateAvailableBalance } from '../finance/domain';
 import { useFinance } from '../finance/use-finance';
 import { goalPercentage } from '../goals/domain';
@@ -28,7 +28,7 @@ export function HomePage() {
   const activeGoals = goals.filter((goal) => goalPercentage(goal) < 100).sort((a, b) => (a.priority === 'main' ? -1 : b.priority === 'main' ? 1 : 0)); const upcomingPayments = payments.filter((payment) => payment.active && payment.next_due_date >= today && payment.next_due_date <= addDays(today, 7)).slice(0, 2); const available = calculateAvailableBalance(accounts, transactions); const recentTransactions = transactions.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 2);
   const completed = useMemo(() => new Set(enrollments.filter((item) => item.final_grade !== null).map((item) => item.subject_id)), [enrollments]); const currentModule = schoolModules.find((module) => subjects.some((subject) => subject.module_id === module.id && !completed.has(subject.id))); const currentModuleSubjects = subjects.filter((subject) => subject.module_id === currentModule?.id); const schoolProgress = currentModuleSubjects.length ? Math.round(currentModuleSubjects.filter((subject) => completed.has(subject.id)).length / currentModuleSubjects.length * 100) : 0; const currentEnrollment = enrollments.find((item) => ['studying', 'upcoming', 'awaiting_grade'].includes(enrollmentStatus(item, today))); const currentSubject = subjects.find((subject) => subject.id === currentEnrollment?.subject_id); const saturdayClass = new Date(`${today}T12:00:00`).getDay() === 6 && currentEnrollment && enrollmentStatus(currentEnrollment, today) === 'studying';
   const roomView = roomState ? deriveRoomView(roomState) : null; const roomCounts = roomState ? deriveRoomCounts(roomState) : null; const roomStatus = roomState ? deriveOverallRoomStatus(roomState) : null; const roomRelevant = roomState ? ROOM_ZONE_IDS.filter((id) => roomView?.[id] !== 'ok').slice(0, 2) : []; const recentIdeas = ideas.filter((idea) => idea.status === 'active').slice(0, 2);
-  useEffect(() => { queueMicrotask(() => { setGreeting(greetingForHour(new Date().getHours())); setPhrase(phrases[Math.floor(Math.random() * phrases.length)]); void createLocalRoomRepository().loadSession().then((session) => setRoomState(session.state)).catch(() => {}); }); }, []);
+  useEffect(() => { queueMicrotask(() => { setGreeting(greetingForHour(new Date().getHours())); setPhrase(phrases[Math.floor(Math.random() * phrases.length)]); void createRoomRepository().loadSession().then((session) => setRoomState(session.state)).catch(() => {}); }); }, []);
   const hasToday = todayTasks.length > 0 || upcomingPayments.length > 0 || saturdayClass || Boolean(roomCounts?.attention || roomCounts?.review);
   return <main className="foundation-page home-page">
     <section className="home-page__greeting"><h1>{greeting}, {settings.profile_name}</h1><p>{phrase}</p></section>

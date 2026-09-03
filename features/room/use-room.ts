@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createLocalRoomRepository } from '../../lib/persistence/local-repositories';
+import { createRoomRepository } from '../../lib/persistence/repositories';
 import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
 import {
   DEFAULT_ROOM_STATE,
@@ -33,7 +33,7 @@ function createId(): string {
 }
 
 export function useRoom() {
-  const [repository] = useState(() => createLocalRoomRepository());
+  const [repository] = useState(() => createRoomRepository());
 
   const [session, setSession] = useState<RoomSession>(INITIAL_SESSION);
   const [selected, setSelected] = useState<SelectedRoomEntity | null>(null);

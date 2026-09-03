@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { TASKS_CHANGED_EVENT } from '../tasks/events';
-import { createLocalTaskRepository } from '../../lib/persistence/local-task-repository';
+import { createTaskRepository } from '../../lib/persistence/repositories';
 import type { Task } from '../tasks/domain';
 
 export function useRoomRelatedTasks(roomItemId: string | null): Task[] {
-  const [repository] = useState(() => createLocalTaskRepository());
+  const [repository] = useState(() => createTaskRepository());
   const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
