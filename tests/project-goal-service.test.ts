@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { prepareProjectSave, prepareProjectStatusChange } from '../features/projects/service';
 import { prepareGoalSave } from '../features/goals/service';
-import { goalPercentage } from '../features/goals/domain';
+import { goalPercentage, goalProgress } from '../features/goals/domain';
+import type { Task } from '../features/tasks/domain';
 import { LOCAL_PROFILE_ID } from '../lib/persistence/schema';
 
 const ids = () => { let value = 0; return () => `id-${++value}`; };
@@ -23,5 +24,17 @@ describe('projects and goals services', () => {
     expect(updated.activity.action).toBe('goal.progress_updated');
     expect(goalPercentage(updated.goal)).toBe(50);
     expect(updated.goal.project_id).toBe('project-1');
+  });
+
+  it('derives goal progress from linked tasks and ignores manual values', () => {
+    const goal = prepareGoalSave(LOCAL_PROFILE_ID, { name: 'Conectar', type: 'manual', priority: 'main', progress: 99, objective: 100, target_date: null, project_id: null }, now, ids()).goal;
+    const base = { profile_id: LOCAL_PROFILE_ID, due_date: null, due_time: null, priority: 'normal' as const, area: 'Proyecto', notes: null, related_label: null, project_id: 'project-1', goal_id: goal.id, subject_enrollment_id: null, room_item_id: null, created_at: now, updated_at: now };
+    const tasks: Task[] = [
+      { ...base, id: 'task-1', title: 'Primera', status: 'completed' },
+      { ...base, id: 'task-2', title: 'Segunda', status: 'pending' },
+    ];
+    expect(goalProgress(goal, tasks)).toEqual({ current: 1, objective: 2, percentage: 50, automatic: true });
+    expect(goalPercentage(goal, tasks.map((task) => ({ ...task, status: 'completed' })))).toBe(100);
+    expect(goalPercentage(goal, [])).toBe(99);
   });
 });

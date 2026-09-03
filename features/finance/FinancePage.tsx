@@ -8,6 +8,8 @@ import { calculateAccountBalance, calculateAvailableBalance, calculateSavingProg
 import { notifyFinanceChanged, requestFinanceCreation, requestFinanceEdit } from './events';
 import { prepareAccountCreate, preparePaymentMark, prepareSavingGoalCreate, prepareTransactionDelete } from './service';
 import { useFinance } from './use-finance';
+import { useSchool } from '../school/use-school';
+import { reportDataError } from '../../lib/supabase/client';
 
 type View = 'summary' | 'transactions' | 'payments' | 'savings';
 const labels: Record<View, string> = { summary: 'Resumen', transactions: 'Movimientos', payments: 'Pagos', savings: 'Ahorro' };
@@ -16,13 +18,14 @@ const createId = () => globalThis.crypto.randomUUID();
 
 export function FinancePage() {
   const { accounts, transactions, payments, savingGoals, repository } = useFinance();
+  const { enrollments, subjects } = useSchool();
   const [view, setView] = useState<View>('summary');
   const [accountOpen, setAccountOpen] = useState(false);
   const [savingOpen, setSavingOpen] = useState(false);
   const [account, setAccount] = useState({ name: '', opening: 0 });
   const [saving, setSaving] = useState({ name: '', target: 0, date: '' });
   const balance = calculateAvailableBalance(accounts, transactions);
-  const removeTransaction = async (item: FinanceTransaction) => { if (!window.confirm(`¿Eliminar ${item.category}?`)) return; await repository.deleteTransaction(item.id, prepareTransactionDelete(LOCAL_PROFILE_ID, item, new Date().toISOString(), createId)); notifyFinanceChanged(); };
+  const removeTransaction = async (item: FinanceTransaction) => { const enrollment = enrollments.find((value) => value.finance_transaction_id === item.id || value.id === item.subject_enrollment_id); const subject = enrollment ? subjects.find((value) => value.id === enrollment.subject_id) : null; const prompt = enrollment ? `Este movimiento está vinculado a ${subject?.name ?? 'una materia'}. La inscripción y el registro de pago se conservarán; solo se quitará la referencia al movimiento. ¿Desvincular y eliminar?` : `¿Eliminar ${item.category}?`; if (!window.confirm(prompt)) return; try { await repository.deleteTransaction(item.id, prepareTransactionDelete(LOCAL_PROFILE_ID, item, new Date().toISOString(), createId)); notifyFinanceChanged(); } catch { reportDataError(enrollment ? 'No pudimos desvincular y eliminar el movimiento. La inscripción sigue protegida.' : 'No pudimos eliminar el movimiento. Inténtalo de nuevo.'); } };
   const markPayment = async (payment: (typeof payments)[number]) => { const mutation = preparePaymentMark(LOCAL_PROFILE_ID, payment, new Date().toISOString(), createId); await repository.savePayment(mutation.payment, mutation.activity, mutation.transaction); notifyFinanceChanged(); };
   const saveAccount = async () => { const value = prepareAccountCreate(LOCAL_PROFILE_ID, account.name, account.opening, new Date().toISOString(), createId); await repository.saveAccount(value); setAccountOpen(false); setAccount({ name: '', opening: 0 }); notifyFinanceChanged(); };
   const saveGoal = async () => { const mutation = prepareSavingGoalCreate(LOCAL_PROFILE_ID, { name: saving.name, target_amount: saving.target, target_date: saving.date || null }, new Date().toISOString(), createId); await repository.saveSavingGoal(mutation.value, mutation.activity); setSavingOpen(false); setSaving({ name: '', target: 0, date: '' }); notifyFinanceChanged(); };

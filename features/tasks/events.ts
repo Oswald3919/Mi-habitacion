@@ -2,6 +2,7 @@ export const TASK_CREATE_EVENT = 'mi-habitacion:task-create';
 export const TASK_EDIT_EVENT = 'mi-habitacion:task-edit';
 export const TASKS_CHANGED_EVENT = 'mi-habitacion:tasks-changed';
 export const TASK_COMPLETED_EVENT = 'mi-habitacion:task-completed';
+export type TaskChangedDetail = { task: import('./domain').Task; pending: boolean };
 
 export function requestTaskCreation(): void {
   window.dispatchEvent(new CustomEvent(TASK_CREATE_EVENT));
@@ -27,6 +28,8 @@ export function requestRoomCompletionConfirmation(taskId: string, roomItemId: st
   window.dispatchEvent(new CustomEvent(TASK_COMPLETED_EVENT, { detail: { taskId, roomItemId } }));
 }
 
-export function notifyTasksChanged(): void {
-  window.dispatchEvent(new Event(TASKS_CHANGED_EVENT));
+export function notifyTasksChanged(detail?: TaskChangedDetail): void {
+  window.dispatchEvent(detail
+    ? new CustomEvent<TaskChangedDetail>(TASKS_CHANGED_EVENT, { detail })
+    : new Event(TASKS_CHANGED_EVENT));
 }

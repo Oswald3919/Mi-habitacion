@@ -2,18 +2,16 @@
 
 import { useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { TaskStatusButton } from '../../components/ui/TaskStatusButton';
 import { StatusChip } from '../../components/ui/StatusChip';
-import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
-import { requestTaskCreation, requestTaskEdit, notifyTasksChanged, requestRoomCompletionConfirmation } from './events';
+import { requestTaskCreation, requestTaskEdit } from './events';
 import { localToday, isToday, isUpcoming, TASK_PRIORITY_LABEL, type Task, type TaskStatus } from './domain';
 import { useTasks } from './use-tasks';
-import { prepareTaskStatusChange } from './service';
+import { useGoals } from '../goals/use-goals';
 
 type TaskView = 'all' | 'today' | 'upcoming' | 'completed';
 
 const viewLabels: Record<TaskView, string> = { all: 'Todas', today: 'Hoy', upcoming: 'Próximas', completed: 'Terminadas' };
-
-function createId(): string { return globalThis.crypto.randomUUID(); }
 
 function groupTasks(tasks: Task[], view: TaskView, today: string): Array<[string, Task[]]> {
   const filtered = tasks.filter((task) => {
@@ -35,30 +33,24 @@ function groupTasks(tasks: Task[], view: TaskView, today: string): Array<[string
 }
 
 export function TasksPage() {
-  const { tasks, repository } = useTasks();
+  const { tasks, pendingTaskIds, setTaskStatus } = useTasks();
+  const { goals } = useGoals();
   const [view, setView] = useState<TaskView>('all');
   const today = localToday();
   const groups = useMemo(() => groupTasks(tasks, view, today), [tasks, view, today]);
 
-  const changeStatus = async (task: Task, status: TaskStatus) => {
-    const mutation = prepareTaskStatusChange(LOCAL_PROFILE_ID, task, status, new Date().toISOString(), createId);
-    if (mutation.activity) {
-      await repository.save(mutation.task, mutation.activity);
-      notifyTasksChanged();
-      if (status === 'completed' && task.room_item_id) requestRoomCompletionConfirmation(task.id, task.room_item_id);
-    }
-  };
+  const changeStatus = (task: Task, status: TaskStatus) => { void setTaskStatus(task, status, goals).catch(() => {}); };
 
   return (
     <main className="foundation-page tasks-page">
       <PageHeader title="Tareas" intro="Lo que quieres poner en orden, un paso a la vez." />
       <div className="tasks-toolbar"><div className="task-tabs" role="tablist" aria-label="Vistas de tareas">{(Object.keys(viewLabels) as TaskView[]).map((tab) => <button key={tab} role="tab" aria-selected={view === tab} className={view === tab ? 'active' : ''} onClick={() => setView(tab)}>{viewLabels[tab]}</button>)}</div><button className="task-new-button" onClick={requestTaskCreation}>+ Nueva tarea</button></div>
-      {groups.length === 0 ? <section className="foundation-card tasks-empty"><span aria-hidden="true">✦</span><h2>{view === 'all' ? 'Todavía no hay tareas' : `No hay tareas en ${viewLabels[view].toLowerCase()}`}</h2><p>Cuando tengas algo pendiente, guárdalo aquí para volver a encontrarlo.</p><button onClick={requestTaskCreation}>Crear una tarea</button></section> : <div className="task-groups">{groups.map(([label, grouped]) => <section key={label} className="task-group" aria-labelledby={`tasks-${label}`}><h2 id={`tasks-${label}`}>{label}</h2>{grouped.map((task) => <TaskCard key={task.id} task={task} today={today} onStatus={changeStatus} onEdit={() => requestTaskEdit(task.id)} />)}</section>)}</div>}
+      {groups.length === 0 ? <section className="foundation-card tasks-empty"><span aria-hidden="true">✦</span><h2>{view === 'all' ? 'Todavía no hay tareas' : `No hay tareas en ${viewLabels[view].toLowerCase()}`}</h2><p>Cuando tengas algo pendiente, guárdalo aquí para volver a encontrarlo.</p><button onClick={requestTaskCreation}>Crear una tarea</button></section> : <div className="task-groups">{groups.map(([label, grouped]) => <section key={label} className="task-group" aria-labelledby={`tasks-${label}`}><h2 id={`tasks-${label}`}>{label}</h2>{grouped.map((task) => <TaskCard key={task.id} task={task} pending={pendingTaskIds.has(task.id)} today={today} onStatus={changeStatus} onEdit={() => requestTaskEdit(task.id)} />)}</section>)}</div>}
     </main>
   );
 }
 
-function TaskCard({ task, today, onStatus, onEdit }: { task: Task; today: string; onStatus: (task: Task, status: TaskStatus) => void; onEdit: () => void }) {
+function TaskCard({ task, pending, today, onStatus, onEdit }: { task: Task; pending: boolean; today: string; onStatus: (task: Task, status: TaskStatus) => void; onEdit: () => void }) {
   const completed = task.status === 'completed';
-  return <article className={`task-card ${completed ? 'completed' : ''}`}><button className="task-check" onClick={() => onStatus(task, completed ? 'pending' : 'completed')} aria-label={completed ? `Reabrir ${task.title}` : `Completar ${task.title}`} aria-pressed={completed}>{completed ? '✓' : ''}</button><div className="task-card__body"><h3>{task.title}</h3><div className="task-card__meta"><span className={`task-priority task-priority--${task.priority}`}>{TASK_PRIORITY_LABEL[task.priority]}</span><StatusChip status={completed ? 'ok' : task.priority === 'urgent' ? 'attention' : 'review'}>{completed ? 'Terminada' : task.area}</StatusChip>{task.due_date && <span className="task-date">{task.due_date === today ? 'Hoy' : new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(new Date(`${task.due_date}T12:00:00`))}{task.due_time ? ` · ${task.due_time}` : ''}</span>}</div>{task.notes && <p className="task-card__notes">{task.notes}</p>}{task.related_label && <p className="task-card__related">Relacionado con · {task.related_label}</p>}</div><button className="task-edit" onClick={onEdit} aria-label={`Editar ${task.title}`}>Editar</button></article>;
+  return <article className={`task-card ${completed ? 'completed' : ''}`}><TaskStatusButton task={task} pending={pending} onToggle={() => onStatus(task, completed ? 'pending' : 'completed')}/><div className="task-card__body"><h3>{task.title}</h3><div className="task-card__meta"><span className={`task-priority task-priority--${task.priority}`}>{TASK_PRIORITY_LABEL[task.priority]}</span><StatusChip status={completed ? 'ok' : task.priority === 'urgent' ? 'attention' : 'review'}>{completed ? 'Terminada' : task.area}</StatusChip>{task.due_date && <span className="task-date">{task.due_date === today ? 'Hoy' : new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).format(new Date(`${task.due_date}T12:00:00`))}{task.due_time ? ` · ${task.due_time}` : ''}</span>}</div>{task.notes && <p className="task-card__notes">{task.notes}</p>}{task.related_label && <p className="task-card__related">Relacionado con · {task.related_label}</p>}</div><button className="task-edit" onClick={onEdit} aria-label={`Editar ${task.title}`}>Editar</button></article>;
 }

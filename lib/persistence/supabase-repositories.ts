@@ -17,7 +17,7 @@ import type { SettingsRepository } from '../../features/settings/repository';
 import { applyRoomStatus, createRoomDayRecord, DEFAULT_ROOM_STATE, ROOM_ITEM_IDS, ROOM_ITEM_LABELS, ROOM_ZONE_IDS, type RoomDayRecord, type RoomSession, type RoomState, type RoomUpdated } from '../../features/room/domain';
 import type { RoomMutation, RoomRepository } from '../../features/room/repository';
 import type { Task } from '../../features/tasks/domain';
-import { sortTasks } from '../../features/tasks/domain';
+import { normalizeTask, sortTasks } from '../../features/tasks/domain';
 import type { TaskRepository } from '../../features/tasks/repository';
 import { getSupabaseBrowserClient, reportDataError } from '../supabase/client';
 import { exportDatabaseFromSupabase, uploadDatabaseToSupabase } from './local-to-supabase';
@@ -34,15 +34,22 @@ async function userId(client: SupabaseClient): Promise<string> {
   if (error || !data.user) { reportDataError('Tu sesión expiró. Vuelve a iniciar sesión.'); throw new Error('Tu sesión expiró. Vuelve a iniciar sesión.'); }
   return data.user.id;
 }
+export function friendlyDataError(message: string): string {
+  const lower = message.toLocaleLowerCase('es-MX');
+  if (lower.includes('subject_enrollments_finance_transaction_fk')) return 'Este movimiento está vinculado a una materia. Desvincúlalo antes de eliminarlo.';
+  if (lower.includes('foreign key') || lower.includes('violates')) return 'Este elemento todavía está vinculado a otros datos y no se puede eliminar así.';
+  if (lower.includes('fetch') || lower.includes('network') || lower.includes('timeout')) return 'La conexión está tardando. Revisa internet e inténtalo otra vez.';
+  return 'No pudimos guardar el cambio. Inténtalo de nuevo.';
+}
 function checked<T>(result: { data: T; error: { message: string } | null }): NonNullable<T> {
-  if (result.error) { reportDataError(result.error.message); throw new Error(result.error.message); }
+  if (result.error) { const message = friendlyDataError(result.error.message); reportDataError(message); throw new Error(message); }
   return result.data as NonNullable<T>;
 }
 const client = () => getSupabaseBrowserClient();
 const zoneNames: Record<(typeof ROOM_ZONE_IDS)[number], string> = { bed: 'Cama', desk: 'Escritorio', tv: 'Zona de TV', closet: 'Clóset' };
 
 export function createSupabaseTaskRepository(): TaskRepository { return {
-  async list() { const c = client(); const uid = await userId(c); const rows = checked(await c.from('tasks').select('*').order('due_date', { ascending: true, nullsFirst: false })); return sortTasks(rows.map((row) => ({ ...row, profile_id: uid })) as Task[]); },
+  async list() { const c = client(); const uid = await userId(c); const rows = checked(await c.from('tasks').select('*').order('due_date', { ascending: true, nullsFirst: false })); return sortTasks(rows.map((row) => normalizeTask({ ...row, profile_id: uid } as Task))); },
   async save(task, activity) { const c = client(); const uid = await userId(c); checked(await c.from('tasks').upsert(withoutProfile(task, uid))); if (activity) checked(await c.from('activity_log').upsert(activityRow(activity, uid))); },
 }; }
 
@@ -50,7 +57,7 @@ export function createSupabaseFinanceRepository(): FinanceRepository { return {
   async load() { const c = client(); const uid = await userId(c); const [a,t,p,s] = await Promise.all([c.from('finance_accounts').select('*'), c.from('finance_transactions').select('*').order('date',{ascending:false}), c.from('recurring_payments').select('*').order('next_due_date'), c.from('finance_saving_goals').select('*')]); return { accounts: checked(a).map((x) => ({...x,profile_id:uid})) as FinanceAccount[], transactions: checked(t).map((x) => ({...x,profile_id:uid,amount:Number(x.amount)})) as FinanceTransaction[], payments: checked(p).map((x) => ({...x,profile_id:uid,amount:Number(x.amount)})) as RecurringPayment[], savingGoals: checked(s).map((x) => ({...x,profile_id:uid,target_amount:Number(x.target_amount)})) as FinanceSavingGoal[] }; },
   async saveAccount(value) { const c=client(); const uid=await userId(c); checked(await c.from('finance_accounts').upsert(withoutProfile(value,uid))); },
   async saveTransaction(value,entry) { const c=client(); const uid=await userId(c); checked(await c.from('finance_transactions').upsert(withoutProfile(value,uid))); checked(await c.from('activity_log').upsert(activityRow(entry,uid))); },
-  async deleteTransaction(id,entry) { const c=client(); const uid=await userId(c); checked(await c.from('finance_transactions').delete().eq('id',id).eq('user_id',uid)); checked(await c.from('activity_log').upsert(activityRow(entry,uid))); },
+  async deleteTransaction(id,entry) { const c=client(); const uid=await userId(c); checked(await c.from('subject_enrollments').update({finance_transaction_id:null,updated_at:new Date().toISOString()}).eq('finance_transaction_id',id).eq('user_id',uid)); checked(await c.from('finance_transactions').delete().eq('id',id).eq('user_id',uid)); checked(await c.from('activity_log').upsert(activityRow(entry,uid))); },
   async savePayment(value,entry,transaction) { const c=client(); const uid=await userId(c); checked(await c.from('recurring_payments').upsert(withoutProfile(value,uid))); if(transaction) checked(await c.from('finance_transactions').upsert(withoutProfile(transaction,uid))); if(entry) checked(await c.from('activity_log').upsert(activityRow(entry,uid))); },
   async saveSavingGoal(value,entry) { const c=client(); const uid=await userId(c); checked(await c.from('finance_saving_goals').upsert(withoutProfile(value,uid))); checked(await c.from('activity_log').upsert(activityRow(entry,uid))); },
 }; }
@@ -58,12 +65,12 @@ export function createSupabaseFinanceRepository(): FinanceRepository { return {
 export function createSupabaseProjectRepository(): ProjectRepository { return {
   async list(){const c=client();const uid=await userId(c);return checked(await c.from('projects').select('*').order('updated_at',{ascending:false})).map(x=>({...x,profile_id:uid})) as Project[];},
   async save(value,entry){const c=client();const uid=await userId(c);checked(await c.from('projects').upsert(withoutProfile(value,uid)));checked(await c.from('activity_log').upsert(activityRow(entry,uid)));},
-  async related(id){const c=client();const uid=await userId(c);const [t,f,a]=await Promise.all([c.from('tasks').select('*').eq('project_id',id),c.from('finance_transactions').select('*').eq('project_id',id),c.from('activity_log').select('*').eq('entity_type','project').eq('entity_id',id).order('occurred_at',{ascending:false})]);return{tasks:checked(t).map(x=>({...x,profile_id:uid})) as Task[],transactions:checked(f).map(x=>({...x,profile_id:uid,amount:Number(x.amount)})) as FinanceTransaction[],activity:checked(a).map(x=>activityDomain(x,uid))};},
+  async related(id){const c=client();const uid=await userId(c);const [t,f,a]=await Promise.all([c.from('tasks').select('*').eq('project_id',id),c.from('finance_transactions').select('*').eq('project_id',id),c.from('activity_log').select('*').eq('entity_type','project').eq('entity_id',id).order('occurred_at',{ascending:false})]);return{tasks:checked(t).map(x=>normalizeTask({...x,profile_id:uid} as Task)),transactions:checked(f).map(x=>({...x,profile_id:uid,amount:Number(x.amount)})) as FinanceTransaction[],activity:checked(a).map(x=>activityDomain(x,uid))};},
 }; }
 export function createSupabaseGoalRepository(): GoalRepository { return {
   async list(){const c=client();const uid=await userId(c);return checked(await c.from('goals').select('*').order('updated_at',{ascending:false})).map(x=>({...x,profile_id:uid,progress:Number(x.progress),objective:Number(x.objective)})) as Goal[];},
   async save(value,entry){const c=client();const uid=await userId(c);checked(await c.from('goals').upsert(withoutProfile(value,uid)));checked(await c.from('activity_log').upsert(activityRow(entry,uid)));},
-  async relatedTasks(id){const c=client();const uid=await userId(c);return checked(await c.from('tasks').select('*').eq('goal_id',id)).map(x=>({...x,profile_id:uid})) as Task[];},
+  async relatedTasks(id){const c=client();const uid=await userId(c);return checked(await c.from('tasks').select('*').eq('goal_id',id)).map(x=>normalizeTask({...x,profile_id:uid} as Task));},
 }; }
 export function createSupabaseIdeaRepository(): IdeaRepository { return {
   async list(){const c=client();const uid=await userId(c);return checked(await c.from('ideas').select('*').order('updated_at',{ascending:false})).map(x=>({...x,profile_id:uid})) as Idea[];},

@@ -58,6 +58,26 @@ export function isTaskStatus(value: unknown): value is TaskStatus {
   return typeof value === 'string' && TASK_STATUSES.includes(value as TaskStatus);
 }
 
+const COMPLETED_STATUS_ALIASES = ['completed', 'complete', 'done', 'terminada', 'terminado', 'completada', 'completado'];
+
+export function normalizeTaskStatus(value: unknown): TaskStatus {
+  if (typeof value !== 'string') return 'pending';
+  const normalized = value.trim().toLocaleLowerCase('es-MX');
+  return COMPLETED_STATUS_ALIASES.includes(normalized)
+    ? 'completed'
+    : 'pending';
+}
+
+function isTaskStatusEquivalent(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLocaleLowerCase('es-MX');
+  return normalized === 'pending' || ['pendiente', 'open', 'abierta', 'abierto'].includes(normalized) || COMPLETED_STATUS_ALIASES.includes(normalized);
+}
+
+export function normalizeTask(task: Task | (Omit<Task, 'status'> & { status: unknown })): Task {
+  return { ...task, status: normalizeTaskStatus(task.status) };
+}
+
 export function isTaskPriority(value: unknown): value is TaskPriority {
   return value === 'none' || value === 'normal' || value === 'urgent';
 }
@@ -70,7 +90,7 @@ export function isTask(value: unknown): value is Task {
     typeof task.profile_id === 'string' &&
     typeof task.title === 'string' &&
     task.title.trim().length > 0 &&
-    isTaskStatus(task.status) &&
+    isTaskStatusEquivalent(task.status) &&
     (task.due_date === null || typeof task.due_date === 'string') &&
     (task.due_time === null || typeof task.due_time === 'string') &&
     isTaskPriority(task.priority) &&

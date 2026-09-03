@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { BottomNav } from './BottomNav';
 import { ContextualCreateSheet } from './ContextualCreateSheet';
 import { MoreMenu } from './MoreMenu';
@@ -33,6 +34,7 @@ import type { Idea } from '../../features/ideas/domain';
 import { createIdeaRepository } from '../../lib/persistence/repositories';
 import { useSettings } from '../../features/settings/use-settings';
 import { DATA_ERROR_EVENT } from '../../lib/supabase/client';
+import { ACHIEVEMENT_EVENT, type Achievement } from '../../features/achievements/events';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -56,6 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
   const [completionPrompt, setCompletionPrompt] = useState<{ taskId: string; roomItemId: RoomItemId } | null>(null);
   const [dataError, setDataError] = useState('');
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [taskRepository] = useState(() => createTaskRepository());
   const { settings } = useSettings();
 
@@ -65,6 +68,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [settings.appearance, settings.accent]);
 
   useEffect(() => { const show = (event: Event) => setDataError((event as CustomEvent<string>).detail || 'No se pudo conectar con tus datos.'); window.addEventListener(DATA_ERROR_EVENT, show); return () => window.removeEventListener(DATA_ERROR_EVENT, show); }, []);
+  useEffect(() => { const show = (event: Event) => { const detail = (event as CustomEvent<Achievement>).detail; if (detail) setAchievements((current) => current.some((item) => item.id === detail.id) ? current : [...current, detail]); }; window.addEventListener(ACHIEVEMENT_EVENT, show); return () => window.removeEventListener(ACHIEVEMENT_EVENT, show); }, []);
+  const achievement = achievements[0] ?? null;
+  useEffect(() => { if (achievement?.type !== 'task') return; const timeout = window.setTimeout(() => setAchievements((current) => current.slice(1)), 3200); return () => window.clearTimeout(timeout); }, [achievement]);
 
   useEffect(() => {
     const openCreate = (event: Event) => { const detail = (event as CustomEvent<{ roomItemId?: string; projectId?: string; goalId?: string }>).detail; setEditingTask(null); setRoomItemId(detail?.roomItemId ?? null); setTaskProjectId(detail?.projectId ?? null); setTaskGoalId(detail?.goalId ?? null); setTaskComposerOpen(true); };
@@ -120,6 +126,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <div className="app-content">{children}</div>
       {dataError && <button type="button" className="data-error-banner" role="alert" onClick={() => setDataError('')}>{dataError}<span>×</span></button>}
+      {achievement?.type === 'task' && <aside className="achievement-toast" role="status"><span>✓</span><div><b>¡Tarea completada!</b><small>{achievement.name}</small></div><button type="button" onClick={() => setAchievements((current) => current.slice(1))} aria-label="Cerrar">×</button></aside>}
+      {achievement && achievement.type !== 'task' && <div className="achievement-overlay" role="presentation"><section className="achievement-card" role="dialog" aria-modal="true" aria-labelledby="achievement-title"><span className="achievement-icon" aria-hidden="true">✦</span><p>{achievement.type === 'goal' ? 'META LOGRADA' : 'PROYECTO TERMINADO'}</p><h2 id="achievement-title">¡Felicidades!</h2><strong>{achievement.type === 'goal' ? `Lograste la meta ${achievement.name}` : `Terminaste el proyecto ${achievement.name}`}</strong><div><Link href={achievement.href} onClick={() => setAchievements((current) => current.slice(1))}>Ver {achievement.type === 'goal' ? 'meta' : 'proyecto'}</Link><button type="button" onClick={() => setAchievements((current) => current.slice(1))}>Cerrar</button></div></section></div>}
       <BottomNav
         moreOpen={moreOpen}
         onMore={() => setMoreOpen((open) => !open)}

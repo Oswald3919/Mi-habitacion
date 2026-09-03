@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LOCAL_PROFILE_ID } from '../lib/persistence/schema';
 import { prepareTaskCreate, prepareTaskStatusChange, prepareTaskUpdate } from '../features/tasks/service';
+import { normalizeTaskStatus } from '../features/tasks/domain';
 
 const ids = () => { let value = 0; return () => `id-${++value}`; };
 
@@ -29,5 +30,10 @@ describe('task service', () => {
     const created = prepareTaskCreate(LOCAL_PROFILE_ID, { title: 'Leer', due_date: null, due_time: null, priority: 'normal', area: 'Personal', notes: null, related_label: null }, '2026-09-02T12:00:00.000Z', ids());
     const unchanged = prepareTaskStatusChange(LOCAL_PROFILE_ID, created.task, 'pending', '2026-09-02T13:00:00.000Z', ids());
     expect(unchanged.activity).toBeNull();
+  });
+
+  it('normalizes legacy completed task states', () => {
+    expect(['completed', 'done', 'Terminado', 'Terminada', 'completada'].map(normalizeTaskStatus)).toEqual(Array(5).fill('completed'));
+    expect(normalizeTaskStatus('pendiente')).toBe('pending');
   });
 });

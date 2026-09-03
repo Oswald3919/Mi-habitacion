@@ -11,7 +11,7 @@ import {
   type RoomUpdated,
   type RoomZoneId,
 } from '../../features/room/domain';
-import { isTask } from '../../features/tasks/domain';
+import { isTask, normalizeTask } from '../../features/tasks/domain';
 import { isFinanceAccount, isFinanceSavingGoal, isFinanceTransaction, isRecurringPayment } from '../../features/finance/domain';
 import { isProject } from '../../features/projects/domain';
 import { isGoal } from '../../features/goals/domain';
@@ -77,6 +77,7 @@ function migrateV2ToV3(database: LocalDatabaseV2): LocalDatabaseV3 {
 function migrateV3ToV4(database: LocalDatabaseV3): LocalDatabase {
   return {
     ...database,
+    tasks: database.tasks.map(normalizeTask),
     schema_version: LOCAL_DATABASE_VERSION,
     settings: { ...DEFAULT_APP_SETTINGS, room_notifications: database.settings.room_notifications },
     school_modules: BIS_MODULES,
@@ -292,9 +293,11 @@ export function isLocalDatabase(value: unknown): value is LocalDatabase {
 export function migrateCurrentDatabase(value: unknown): LocalDatabase | null {
   if (isLocalDatabase(value)) {
     const settings = normalizeAppSettings(value.settings);
-    return value.settings.appearance === settings.appearance && value.settings.accent === settings.accent
+    const tasks = value.tasks.map(normalizeTask);
+    const tasksChanged = tasks.some((task, index) => task.status !== value.tasks[index].status);
+    return !tasksChanged && value.settings.appearance === settings.appearance && value.settings.accent === settings.accent
       ? value
-      : { ...value, settings };
+      : { ...value, settings, tasks };
   }
   if (isLocalDatabaseV3(value)) return migrateV3ToV4(value);
   if (isLocalDatabaseV2(value)) return migrateV3ToV4(migrateV2ToV3(value));

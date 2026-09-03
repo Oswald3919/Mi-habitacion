@@ -19,7 +19,21 @@ export type GoalInput = Omit<Goal, 'id' | 'profile_id' | 'created_at' | 'updated
 export const GOAL_TYPE_LABEL: Record<GoalType, string> = { money: 'Dinero', quantity: 'Cantidad', manual: 'Manual' };
 export const GOAL_PRIORITY_LABEL: Record<GoalPriority, string> = { none: 'Sin prisa', important: 'Importante', main: 'Principal' };
 
-export function goalPercentage(goal: Goal): number {
+import type { Task } from '../tasks/domain';
+
+export type GoalProgress = { current: number; objective: number; percentage: number; automatic: boolean };
+
+export function goalProgress(goal: Goal, tasks: Task[] = []): GoalProgress {
+  const related = tasks.filter((task) => task.goal_id === goal.id);
+  const automatic = related.length > 0;
+  const current = automatic ? related.filter((task) => task.status === 'completed').length : goal.progress;
+  const objective = automatic ? related.length : goal.objective;
+  const percentage = objective <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((current / objective) * 100)));
+  return { current, objective, percentage, automatic };
+}
+
+export function goalPercentage(goal: Goal, tasks: Task[] = []): number {
+  if (tasks.some((task) => task.goal_id === goal.id)) return goalProgress(goal, tasks).percentage;
   if (goal.objective <= 0) return 0;
   return Math.min(100, Math.max(0, Math.round((goal.progress / goal.objective) * 100)));
 }

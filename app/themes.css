@@ -313,3 +313,18 @@ html[data-appearance='dark'] .row-actions button { color: var(--theme-accent-con
 .auth-session-button { position: fixed; z-index: 29; top: 12px; right: 12px; padding: 7px 10px; border: 1px solid var(--theme-line); border-radius: 99px; background: color-mix(in srgb, var(--theme-card) 90%, transparent); color: var(--theme-muted); font-size: .62rem; font-weight: 800; backdrop-filter: blur(10px); cursor: pointer; }
 .data-error-banner { position: fixed; z-index: 60; left: 50%; top: 12px; display: flex; align-items: center; gap: 12px; width: min(calc(100% - 28px), 520px); padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--attention) 45%, var(--theme-line)); border-radius: 13px; background: var(--attention-soft); color: var(--theme-ink); box-shadow: 0 10px 30px rgba(0,0,0,.18); transform: translateX(-50%); cursor: pointer; }
 .data-error-banner span { margin-left: auto; font-size: 1rem; }
+.achievement-toast { position: fixed; z-index: 61; left: 50%; bottom: 88px; display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; width: min(calc(100% - 28px), 460px); padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--ok) 42%, var(--theme-line)); border-radius: 15px; background: var(--theme-card); color: var(--theme-ink); box-shadow: 0 14px 38px rgba(23,53,47,.2); transform: translateX(-50%); }
+.achievement-toast > span, .achievement-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--ok-soft); color: var(--ok); font-weight: 900; }
+.achievement-toast div { display: grid; gap: 2px; }
+.achievement-toast small { color: var(--theme-muted); }
+.achievement-toast button { border: 0; background: transparent; color: var(--theme-muted); font-size: 1.15rem; cursor: pointer; }
+.achievement-overlay { position: fixed; z-index: 62; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(23,53,47,.48); backdrop-filter: blur(4px); }
+.achievement-card { width: min(100%, 440px); padding: 30px; border: 1px solid var(--theme-line); border-radius: 25px; background: var(--theme-card); color: var(--theme-ink); box-shadow: 0 24px 70px rgba(16,45,39,.32); text-align: center; }
+.achievement-icon { width: 52px; height: 52px; margin: 0 auto 14px; font-size: 1.25rem; }
+.achievement-card p { margin: 0; color: var(--theme-accent); font-size: .65rem; font-weight: 850; letter-spacing: .14em; }
+.achievement-card h2 { margin: 8px 0; font-family: Georgia, serif; font-size: 2rem; font-weight: 500; }
+.achievement-card > strong { display: block; color: var(--theme-muted); font-size: .85rem; }
+.achievement-card > div { display: flex; gap: 8px; margin-top: 24px; }
+.achievement-card a, .achievement-card button { flex: 1; min-height: 44px; padding: 12px; border-radius: 12px; font-size: .72rem; font-weight: 800; cursor: pointer; }
+.achievement-card a { background: var(--theme-accent); color: var(--theme-accent-contrast); text-decoration: none; }
+.achievement-card button { border: 1px solid var(--theme-line); background: var(--theme-surface); color: var(--theme-muted); }
