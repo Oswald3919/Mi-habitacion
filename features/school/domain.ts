@@ -20,6 +20,8 @@ export function addDays(date: string, days: number): string { const value = new 
 export function enrollmentEndDate(enrollment: Pick<SubjectEnrollment, 'start_date' | 'duration_weeks'>): string { return addDays(enrollment.start_date, (enrollment.duration_weeks - 1) * 7); }
 export function enrollmentCost(duration: 2 | 3 | 4, settings: SchoolSettings): number { return settings[`price_${duration}_weeks`]; }
 export function enrollmentStatus(enrollment: SubjectEnrollment, today: string): EnrollmentStatus { if (enrollment.final_grade !== null) return 'completed'; if (today < enrollment.start_date) return 'upcoming'; if (today <= enrollmentEndDate(enrollment)) return 'studying'; return 'awaiting_grade'; }
+export function isEnrollmentFinishedByDate(enrollment: SubjectEnrollment, today: string): boolean { return today >= enrollmentEndDate(enrollment); }
+export function isEnrollmentCompletedForProgress(enrollment: SubjectEnrollment, today: string): boolean { return enrollment.final_grade !== null || isEnrollmentFinishedByDate(enrollment, today); }
 export function isSaturday(date: string): boolean { return new Date(`${date}T12:00:00`).getDay() === 6; }
 export function isSchoolModule(value: unknown): value is SchoolModule { if (!value || typeof value !== 'object') return false; const item = value as Partial<SchoolModule>; return typeof item.id === 'string' && typeof item.number === 'number' && typeof item.name === 'string'; }
 export function isSchoolSubject(value: unknown): value is SchoolSubject { if (!value || typeof value !== 'object') return false; const item = value as Partial<SchoolSubject>; return typeof item.id === 'string' && typeof item.module_id === 'string' && typeof item.name === 'string'; }

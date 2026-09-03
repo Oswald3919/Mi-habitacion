@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { enrollmentCost, enrollmentEndDate, enrollmentStatus, SCHOOL_DEFAULT_SETTINGS } from '../features/school/domain';
+import { enrollmentCost, enrollmentEndDate, enrollmentStatus, isEnrollmentCompletedForProgress, SCHOOL_DEFAULT_SETTINGS } from '../features/school/domain';
 import { prepareEnrollment, prepareGrade, prepareSchoolPayment } from '../features/school/service';
 import { LOCAL_PROFILE_ID } from '../lib/persistence/schema';
 const ids = () => { let value = 0; return () => `id-${++value}`; };
@@ -27,5 +27,13 @@ describe('school domain and service', () => {
     expect(payment?.transaction).toMatchObject({ amount: 772, type: 'expense', category: 'Escuela', subject_enrollment_id: enrollment.id });
     expect(payment?.activity.map((item) => item.action)).toEqual(['finance.transaction_created', 'school.payment_marked']);
     expect(prepareSchoolPayment(LOCAL_PROFILE_ID, payment!.enrollment, 'Cultura Digital I', 'cash', 'cash', SCHOOL_DEFAULT_SETTINGS, now, ids())).toBeNull();
+  });
+
+  it('separates calendar progress from the final grade', () => {
+    const enrollment = prepareEnrollment(LOCAL_PROFILE_ID, 'subject-1', '2026-08-22', 2, [], now, ids()).enrollment;
+    expect(enrollment.final_grade).toBeNull();
+    expect(enrollmentStatus(enrollment, '2026-09-02')).toBe('awaiting_grade');
+    expect(isEnrollmentCompletedForProgress(enrollment, '2026-09-02')).toBe(true);
+    expect(isEnrollmentCompletedForProgress(enrollment, '2026-08-28')).toBe(false);
   });
 });

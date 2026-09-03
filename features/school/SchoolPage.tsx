@@ -5,7 +5,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { LOCAL_PROFILE_ID } from '../../lib/persistence/schema';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABEL, type PaymentMethod } from '../finance/domain';
 import { useFinance } from '../finance/use-finance';
-import { enrollmentCost, enrollmentEndDate, enrollmentStatus, ENROLLMENT_STATUS_LABEL, type SubjectEnrollment } from './domain';
+import { enrollmentCost, enrollmentEndDate, enrollmentStatus, ENROLLMENT_STATUS_LABEL, isEnrollmentCompletedForProgress, type SubjectEnrollment } from './domain';
 import { notifySchoolChanged, requestSchoolEnrollment, requestSchoolGrade } from './events';
 import { prepareSchoolPayment } from './service';
 import { useSchool } from './use-school';
@@ -16,11 +16,15 @@ const createId = () => globalThis.crypto.randomUUID();
 const today = () => new Date().toLocaleDateString('en-CA');
 export function SchoolPage() {
   const { modules, subjects, enrollments, settings, activity, repository } = useSchool(); const { accounts } = useFinance(); const [view, setView] = useState<View>('summary'); const [paymentEnrollment, setPaymentEnrollment] = useState<SubjectEnrollment | null>(null); const [accountId, setAccountId] = useState(''); const [method, setMethod] = useState<PaymentMethod>('card'); const [error, setError] = useState(''); const date = today();
-  const completedIds = useMemo(() => new Set(enrollments.filter((item) => item.final_grade !== null).map((item) => item.subject_id)), [enrollments]);
-  const currentModule = modules.find((module) => subjects.some((subject) => subject.module_id === module.id && !completedIds.has(subject.id))) ?? modules.at(-1);
+  const orderedModules = useMemo(() => [...modules].sort((a, b) => a.position - b.position), [modules]);
+  const orderedSubjects = useMemo(() => [...subjects].sort((a, b) => a.module_id.localeCompare(b.module_id) || a.position - b.position), [subjects]);
+  const completedIds = useMemo(() => new Set(enrollments.filter((item) => isEnrollmentCompletedForProgress(item, date)).map((item) => item.subject_id)), [enrollments, date]);
+  const currentModule = orderedModules.find((module) => orderedSubjects.some((subject) => subject.module_id === module.id && !completedIds.has(subject.id))) ?? orderedModules.at(-1);
   const moduleSubjects = subjects.filter((subject) => subject.module_id === currentModule?.id); const moduleCompleted = moduleSubjects.filter((subject) => completedIds.has(subject.id)).length; const progress = moduleSubjects.length ? Math.round(moduleCompleted / moduleSubjects.length * 100) : 0;
-  const active = enrollments.find((item) => { const status = enrollmentStatus(item, date); return status === 'studying' || status === 'awaiting_grade'; }) ?? enrollments.find((item) => enrollmentStatus(item, date) === 'upcoming') ?? null;
-  const nextSubject = subjects.find((subject) => !enrollments.some((item) => item.subject_id === subject.id)) ?? null;
+  const active = [...enrollments].sort((a, b) => enrollmentEndDate(b).localeCompare(enrollmentEndDate(a))).find((item) => enrollmentStatus(item, date) === 'studying')
+    ?? [...enrollments].sort((a, b) => enrollmentEndDate(b).localeCompare(enrollmentEndDate(a))).find((item) => enrollmentStatus(item, date) === 'awaiting_grade')
+    ?? [...enrollments].sort((a, b) => a.start_date.localeCompare(b.start_date)).find((item) => enrollmentStatus(item, date) === 'upcoming') ?? null;
+  const nextSubject = orderedSubjects.find((subject) => !enrollments.some((item) => item.subject_id === subject.id)) ?? null;
   const subjectName = (id: string) => subjects.find((subject) => subject.id === id)?.name ?? 'Materia';
   const openPayment = (enrollment: SubjectEnrollment) => { setPaymentEnrollment(enrollment); setAccountId(accounts[0]?.id ?? ''); setError(''); };
   const markPaid = async () => { if (!paymentEnrollment) return; try { const mutation = prepareSchoolPayment(LOCAL_PROFILE_ID, paymentEnrollment, subjectName(paymentEnrollment.subject_id), accountId, method, settings, new Date().toISOString(), createId); if (mutation) { await repository.markPaid(mutation.enrollment, mutation.transaction, mutation.activity); notifySchoolChanged(); } setPaymentEnrollment(null); } catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo registrar el pago.'); } };
